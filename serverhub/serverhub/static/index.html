@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>ServerHub · server.zmjjkkk.fun</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #05070d;
+      --bg-soft: #090d16;
+      --panel: rgba(15, 23, 42, .72);
+      --panel-solid: #0f172a;
+      --card: rgba(17, 24, 39, .72);
+      --card-strong: #111827;
+      --line: rgba(148, 163, 184, .18);
+      --line-strong: rgba(148, 163, 184, .32);
+      --text: #eef2ff;
+      --muted: #94a3b8;
+      --subtle: #64748b;
+      --accent: #8b5cf6;
+      --accent-2: #22d3ee;
+      --good: #34d399;
+      --warn: #fbbf24;
+      --bad: #fb7185;
+      --blue: #60a5fa;
+      --shadow: 0 24px 90px rgba(0,0,0,.42);
+      --radius: 26px;
+      --radius-sm: 16px;
+      --tap: 44px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(34, 211, 238, .18), transparent 30%),
+        radial-gradient(circle at 88% 0%, rgba(139, 92, 246, .2), transparent 34%),
+        radial-gradient(circle at 70% 70%, rgba(52, 211, 153, .08), transparent 28%),
+        linear-gradient(180deg, var(--bg), #080b12 48%, #05070d);
+      overflow-x: hidden;
+    }
+    a { color: inherit; text-decoration: none; }
+    button, input, select { font: inherit; }
+    .shell { display: grid; grid-template-columns: 276px minmax(0, 1fr); min-height: 100vh; }
+    .sidebar {
+      position: sticky; top: 0; height: 100vh; padding: 22px 18px;
+      border-right: 1px solid var(--line); background: rgba(5, 7, 13, .78); backdrop-filter: blur(18px);
+      display: flex; flex-direction: column; gap: 18px;
+    }
+    .brand { display: flex; gap: 13px; align-items: center; padding: 10px 8px 18px; border-bottom: 1px solid var(--line); }
+    .brand-mark {
+      width: 44px; height: 44px; border-radius: 15px; display: grid; place-items: center;
+      background: linear-gradient(135deg, rgba(139,92,246,.95), rgba(34,211,238,.92)); box-shadow: 0 18px 50px rgba(34,211,238,.22);
+    }
+    .brand h1 { margin: 0; font-size: 18px; letter-spacing: -.04em; }
+    .brand p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+    .nav { display: grid; gap: 6px; }
+    .nav button {
+      width: 100%; min-height: var(--tap); border: 0; border-radius: 15px; padding: 0 12px;
+      display: flex; gap: 11px; align-items: center; color: var(--muted); background: transparent; cursor: pointer; text-align: left;
+    }
+    .nav button:hover, .nav button.active { color: var(--text); background: rgba(148,163,184,.12); }
+    .nav button.active { box-shadow: inset 0 0 0 1px var(--line); }
+    .nav svg, .brand svg, .service-icon svg, .quick-icon svg { width: 19px; height: 19px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .sidebar-foot { margin-top: auto; padding: 14px; border: 1px solid var(--line); border-radius: 18px; background: rgba(15,23,42,.56); color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .main { min-width: 0; padding: 22px clamp(14px, 3vw, 34px) 46px; }
+    .topbar {
+      position: sticky; top: 0; z-index: 10; margin: -22px calc(clamp(14px, 3vw, 34px) * -1) 22px;
+      padding: 16px clamp(14px, 3vw, 34px); display: flex; gap: 14px; align-items: center; justify-content: space-between;
+      background: linear-gradient(180deg, rgba(5,7,13,.92), rgba(5,7,13,.72)); backdrop-filter: blur(18px); border-bottom: 1px solid rgba(148,163,184,.1);
+    }
+    .search { position: relative; flex: 1; max-width: 640px; }
+    .search input {
+      width: 100%; min-height: 48px; border: 1px solid var(--line); border-radius: 18px; outline: none;
+      padding: 0 16px 0 46px; color: var(--text); background: rgba(15,23,42,.68);
+    }
+    .search svg { position: absolute; left: 16px; top: 14px; width: 19px; height: 19px; color: var(--muted); }
+    .top-actions { display: flex; gap: 10px; align-items: center; }
+    .btn {
+      min-height: var(--tap); border: 1px solid var(--line); border-radius: 15px; padding: 0 14px;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px; color: var(--text); background: rgba(15,23,42,.68); cursor: pointer;
+    }
+    .btn:hover { border-color: var(--line-strong); background: rgba(30,41,59,.82); }
+    .btn.primary { border-color: rgba(34,211,238,.45); background: linear-gradient(135deg, rgba(139,92,246,.32), rgba(34,211,238,.18)); }
+    .btn.danger { border-color: rgba(251,113,133,.36); color: #fecdd3; }
+    .view { display: none; }
+    .view.active { display: block; animation: rise .28s ease both; }
+    @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .hero {
+      border: 1px solid var(--line); border-radius: 34px; padding: clamp(22px, 4vw, 42px); overflow: hidden; position: relative;
+      background:
+        linear-gradient(135deg, rgba(139,92,246,.2), rgba(34,211,238,.08) 42%, rgba(15,23,42,.72)),
+        rgba(15,23,42,.62); box-shadow: var(--shadow);
+    }
+    .hero::after { content: ""; position: absolute; inset: -80px -120px auto auto; width: 320px; height: 320px; border-radius: 999px; background: rgba(34,211,238,.12); filter: blur(4px); }
+    .eyebrow { color: var(--accent-2); font-weight: 800; letter-spacing: .12em; text-transform: uppercase; font-size: 12px; }
+    .hero h2 { margin: 12px 0 10px; max-width: 860px; font-size: clamp(36px, 6vw, 76px); line-height: .9; letter-spacing: -.075em; }
+    .hero p { max-width: 760px; color: #cbd5e1; font-size: clamp(15px, 1.5vw, 18px); line-height: 1.75; margin: 0; }
+    .hero-actions { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 10px; }
+    .status-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px; margin: 18px 0 24px; }
+    .metric-card, .panel, .service-card, .quick-card {
+      border: 1px solid var(--line); background: var(--panel); backdrop-filter: blur(18px); border-radius: var(--radius); box-shadow: 0 18px 70px rgba(0,0,0,.18);
+    }
+    .metric-card { padding: 18px; min-width: 0; }
+    .metric-label { color: var(--muted); font-size: 12px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+    .metric-value { margin-top: 7px; font-size: 30px; font-weight: 900; letter-spacing: -.05em; }
+    .metric-sub { margin-top: 5px; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bar { height: 8px; border-radius: 999px; background: rgba(148,163,184,.15); overflow: hidden; margin-top: 13px; }
+    .bar span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--good), var(--accent-2)); width: 0%; transition: width .4s ease; }
+    .section-head { display: flex; gap: 12px; justify-content: space-between; align-items: end; margin: 30px 0 13px; }
+    .section-head h3 { margin: 0; font-size: 23px; letter-spacing: -.045em; }
+    .section-head p { margin: 5px 0 0; color: var(--muted); font-size: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .service-card { padding: 18px; min-width: 0; position: relative; overflow: hidden; }
+    .service-card::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--line); }
+    .service-card.online::before { background: linear-gradient(90deg, var(--good), var(--accent-2)); }
+    .service-card.degraded::before { background: linear-gradient(90deg, var(--warn), var(--accent)); }
+    .service-card.offline::before { background: linear-gradient(90deg, var(--bad), #f97316); }
+    .card-top { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+    .service-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .service-icon, .quick-icon { width: 42px; height: 42px; flex: 0 0 auto; border-radius: 15px; display: grid; place-items: center; background: rgba(148,163,184,.12); color: var(--accent-2); }
+    .service-title { min-width: 0; }
+    .service-title h4 { margin: 0; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .service-title p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+    .status-pill { flex: 0 0 auto; border: 1px solid var(--line); border-radius: 999px; padding: 6px 9px; font-size: 12px; color: var(--muted); background: rgba(15,23,42,.62); }
+    .status-pill.online { color: #bbf7d0; border-color: rgba(52,211,153,.32); }
+    .status-pill.degraded { color: #fde68a; border-color: rgba(251,191,36,.32); }
+    .status-pill.offline { color: #fecdd3; border-color: rgba(251,113,133,.32); }
+    .desc { color: #cbd5e1; line-height: 1.55; font-size: 13px; margin: 13px 0; min-height: 40px; }
+    .meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 13px 0; }
+    .meta div { border: 1px solid rgba(148,163,184,.12); border-radius: 13px; padding: 9px; color: var(--muted); font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .pills { display: flex; flex-wrap: wrap; gap: 7px; }
+    .pill { border: 1px solid rgba(148,163,184,.16); border-radius: 999px; padding: 5px 8px; color: var(--muted); font-size: 12px; background: rgba(15,23,42,.48); }
+    .pill.public { color: #bfdbfe; border-color: rgba(96,165,250,.3); }
+    .pill.protected { color: #ddd6fe; border-color: rgba(167,139,250,.3); }
+    .pill.local-only { color: #bbf7d0; border-color: rgba(52,211,153,.3); }
+    .actions { margin-top: 15px; display: flex; flex-wrap: wrap; gap: 8px; }
+    .panel { padding: 18px; }
+    .quick-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px; }
+    .quick-card { padding: 17px; display: flex; gap: 12px; align-items: flex-start; min-height: 118px; }
+    .quick-card strong { display: block; margin-bottom: 5px; }
+    .quick-card span { color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .table th, .table td { padding: 12px 10px; border-bottom: 1px solid rgba(148,163,184,.12); text-align: left; vertical-align: top; }
+    .table th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+    .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .log-panel { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 14px; }
+    .log-tabs { display: grid; gap: 8px; align-content: start; }
+    .log-tabs button { min-height: var(--tap); border: 1px solid var(--line); border-radius: 14px; background: rgba(15,23,42,.58); color: var(--muted); cursor: pointer; text-align: left; padding: 0 12px; }
+    .log-tabs button.active { color: var(--text); border-color: rgba(34,211,238,.34); background: rgba(34,211,238,.08); }
+    pre.logs { margin: 0; max-height: 62vh; overflow: auto; padding: 16px; border-radius: 18px; background: #020617; color: #d1d5db; border: 1px solid var(--line); font: 12px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
+    .empty { display: none; color: var(--muted); border: 1px dashed var(--line-strong); border-radius: var(--radius); padding: 28px; text-align: center; }
+    .notice { border: 1px solid rgba(251,191,36,.24); background: rgba(251,191,36,.08); color: #fde68a; border-radius: 18px; padding: 14px; line-height: 1.55; }
+    .hidden { display: none !important; }
+    .loading { opacity: .64; pointer-events: none; }
+    @media (max-width: 1120px) { .shell { grid-template-columns: 1fr; } .sidebar { position: static; height: auto; padding: 14px; border-right: 0; border-bottom: 1px solid var(--line); } .brand { padding-bottom: 12px; } .nav { display: flex; overflow-x: auto; padding-bottom: 4px; } .nav button { flex: 0 0 auto; width: auto; } .sidebar-foot { display: none; } .grid, .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); } .quick-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 720px) { .main { padding: 14px 12px 34px; } .topbar { margin: -14px -12px 16px; padding: 12px; flex-direction: column; align-items: stretch; } .top-actions { justify-content: space-between; } .hero { border-radius: 24px; padding: 22px; } .status-grid, .grid, .grid.two, .quick-grid, .log-panel { grid-template-columns: 1fr; } .section-head { align-items: flex-start; flex-direction: column; } .meta { grid-template-columns: 1fr; } .btn { flex: 1 1 auto; } .metric-value { font-size: 25px; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark" data-icon="command"></div>
+        <div><h1>ServerHub</h1><p>server.zmjjkkk.fun · 统一控制台</p></div>
+      </div>
+      <nav class="nav" id="nav"></nav>
+      <div class="sidebar-foot">
+        <strong>安全策略</strong><br />当前控制台默认只读。危险写操作、删除、重启、配置修改均不在公网入口直接开放。
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="search">
+          <span data-icon="search"></span>
+          <input id="globalSearch" placeholder="搜索服务、端口、路径、标签… 按 / 聚焦" autocomplete="off" />
+        </div>
+        <div class="top-actions">
+          <button class="btn" id="refreshBtn"><span data-icon="refresh"></span>刷新</button>
+          <a class="btn primary" href="https://agent.zmjjkkk.fun/" target="_blank" rel="noopener"><span data-icon="bot"></span>Agent</a>
+        </div>
+      </header>
+
+      <section class="view active" id="view-overview"></section>
+      <section class="view" id="view-services"></section>
+      <section class="view" id="view-agents"></section>
+      <section class="view" id="view-tasks"></section>
+      <section class="view" id="view-backups"></section>
+      <section class="view" id="view-security"></section>
+      <section class="view" id="view-logs"></section>
+    </main>
+  </div>
+
+  <script>
+    const iconSvg = {
+      command: '<svg viewBox="0 0 24 24"><path d="M8 8h8v8H8z"/><path d="M4 8a4 4 0 1 1 4-4v4H4zM16 4a4 4 0 1 1 4 4h-4V4zM8 16v4a4 4 0 1 1-4-4h4zM16 16h4a4 4 0 1 1-4 4v-4z"/></svg>',
+      activity: '<svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 8L9 4l-3 8H2"/></svg>',
+      bot: '<svg viewBox="0 0 24 24"><path d="M12 8V4"/><rect x="4" y="8" width="16" height="12" rx="4"/><path d="M9 13h.01M15 13h.01M9 17h6"/></svg>',
+      paw: '<svg viewBox="0 0 24 24"><path d="M11 17c-2 2-6 1-6-2 0-2 2-3 4-3 1-2 5-2 6 0 2 0 4 1 4 3 0 3-4 4-6 2-.7-.6-1.3-.6-2 0z"/><path d="M5 9c-1.2 0-2-1-2-2.2S3.8 5 5 5s2 1 2 2.2S6.2 9 5 9zM10 7c-1.2 0-2-1-2-2.2S8.8 3 10 3s2 1 2 2.2S11.2 7 10 7zM15 7c-1.2 0-2-1-2-2.2S13.8 3 15 3s2 1 2 2.2S16.2 7 15 7zM20 9c-1.2 0-2-1-2-2.2S18.8 5 20 5s2 1 2 2.2S21.2 9 20 9z"/></svg>',
+      book: '<svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4v15.5A2.5 2.5 0 0 1 6.5 17H20V4z"/></svg>',
+      folder: '<svg viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+      brain: '<svg viewBox="0 0 24 24"><path d="M9 4a4 4 0 0 0-4 4 4 4 0 0 0 0 8 4 4 0 0 0 4 4"/><path d="M15 4a4 4 0 0 1 4 4 4 4 0 0 1 0 8 4 4 0 0 1-4 4"/><path d="M9 4v16M15 4v16M9 10h6M9 14h6"/></svg>',
+      newspaper: '<svg viewBox="0 0 24 24"><path d="M4 5h14a2 2 0 0 1 2 2v12H6a2 2 0 0 1-2-2z"/><path d="M8 9h6M8 13h8M8 17h5"/></svg>',
+      cpu: '<svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4"/></svg>',
+      globe: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>',
+      search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>',
+      refresh: '<svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.5 6.2"/><path d="M3 12A9 9 0 0 1 18.5 5.8"/><path d="M18 2v4h-4M6 22v-4h4"/></svg>',
+      shield: '<svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+      archive: '<svg viewBox="0 0 24 24"><path d="M21 8v13H3V8M1 3h22v5H1z"/><path d="M10 12h4"/></svg>',
+      clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
+      logs: '<svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10"/></svg>',
+    };
+
+    const navItems = [
+      ['overview', '总览', 'command'], ['services', '服务', 'globe'], ['agents', 'Agent', 'bot'],
+      ['tasks', '任务', 'clock'], ['backups', '备份', 'archive'], ['security', '安全', 'shield'], ['logs', '日志', 'logs']
+    ];
+    const state = { data: null, q: '', logSource: 'serverhub' };
+
+    const $ = (sel, root = document) => root.querySelector(sel);
+    const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+    const fmtBytes = n => {
+      if (!Number.isFinite(n)) return '-';
+      const units = ['B','KB','MB','GB','TB']; let i = 0; let v = n;
+      while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+      return `${v.toFixed(i ? 1 : 0)} ${units[i]}`;
+    };
+    const fmtUptime = sec => {
+      if (!Number.isFinite(sec)) return '-';
+      const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60);
+      return d ? `${d}天 ${h}小时` : h ? `${h}小时 ${m}分` : `${m}分`;
+    };
+    const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const icon = name => iconSvg[name] || iconSvg.command;
+
+    function hydrateIcons(root = document) {
+      $$('[data-icon]', root).forEach(el => { el.innerHTML = icon(el.dataset.icon); });
+    }
+
+    function setView(id) {
+      $$('.view').forEach(v => v.classList.toggle('active', v.id === `view-${id}`));
+      $$('.nav button').forEach(b => b.classList.toggle('active', b.dataset.view === id));
+      location.hash = id === 'overview' ? '' : id;
+      if (id === 'logs') loadLogs();
+    }
+
+    function renderNav() {
+      $('#nav').innerHTML = navItems.map(([id, label, ico]) => `<button data-view="${id}"><span data-icon="${ico}"></span>${label}</button>`).join('');
+      $('#nav').addEventListener('click', e => { const btn = e.target.closest('button[data-view]'); if (btn) setView(btn.dataset.view); });
+      hydrateIcons($('#nav'));
+    }
+
+    function serviceMatches(svc) {
+      const q = state.q.trim().toLowerCase();
+      if (!q) return true;
+      return [svc.name, svc.id, svc.unit, svc.group, svc.desc, svc.path, svc.port, svc.exposure, ...(svc.tags || [])].filter(Boolean).join(' ').toLowerCase().includes(q);
+    }
+
+    function serviceCard(svc) {
+      const status = svc.status || 'offline';
+      const statusText = status === 'online' ? '在线' : status === 'degraded' ? '降级' : '离线';
+      const url = svc.url ? `<a class="btn primary" href="${esc(svc.url)}" target="_blank" rel="noopener">打开</a>` : '';
+      const local = svc.local_url ? `<a class="btn" href="${esc(svc.local_url)}" target="_blank" rel="noopener">本机 API</a>` : '';
+      return `<article class="service-card ${status}" data-search="${esc([svc.name, svc.unit, svc.desc, svc.path, svc.port, ...(svc.tags || [])].join(' ').toLowerCase())}">
+        <div class="card-top">
+          <div class="service-main"><div class="service-icon">${icon(svc.icon)}</div><div class="service-title"><h4>${esc(svc.name)}</h4><p>${esc(svc.group)} · ${esc(svc.unit || '-')}</p></div></div>
+          <span class="status-pill ${status}">${statusText}</span>
+        </div>
+        <div class="desc">${esc(svc.desc)}</div>
+        <div class="meta"><div>端口<br><strong>${esc(svc.port || '-')}</strong></div><div>HTTP<br><strong>${esc(svc.http?.status_code || '-')} ${svc.http?.elapsed_ms ? `· ${svc.http.elapsed_ms}ms` : ''}</strong></div><div>systemd<br><strong>${esc(svc.systemd || '-')}</strong></div><div>路径<br><strong title="${esc(svc.path)}">${esc(svc.path)}</strong></div></div>
+        <div class="pills"><span class="pill ${esc(svc.exposure)}">${esc(svc.exposure)}</span>${(svc.tags || []).slice(0,4).map(t => `<span class="pill">#${esc(t)}</span>`).join('')}</div>
+        ${svc.reasons?.length ? `<div class="notice" style="margin-top:12px">${svc.reasons.map(esc).join('<br>')}</div>` : ''}
+        <div class="actions">${url}${local}<a class="btn" href="#logs" onclick="setView('logs')">日志</a></div>
+      </article>`;
+    }
+
+    function metricCard(label, value, sub, pct) {
+      return `<div class="metric-card"><div class="metric-label">${esc(label)}</div><div class="metric-value">${esc(value)}</div><div class="metric-sub">${esc(sub)}</div>${Number.isFinite(pct) ? `<div class="bar"><span style="width:${Math.min(100, Math.max(0, pct))}%"></span></div>` : ''}</div>`;
+    }
+
+    function renderOverview() {
+      const data = state.data;
+      const m = data.metrics;
+      const services = data.services.filter(serviceMatches);
+      const pinned = services.filter(s => s.pinned).slice(0, 8);
+      $('#view-overview').innerHTML = `
+        <div class="hero">
+          <div class="eyebrow">ServerHub Online</div>
+          <h2>server 主站已接管为统一控制台</h2>
+          <p>这里整合服务器上已有的监控、Agent、知识库、文件、记忆、任务、备份与安全状态。底层服务保持独立，入口体验统一，危险操作默认只读封锁。</p>
+          <div class="hero-actions"><a class="btn primary" href="https://agent.zmjjkkk.fun/" target="_blank">进入 Agent</a><a class="btn" href="https://monitor.zmjjkkk.fun/" target="_blank">系统监控</a><a class="btn" href="https://notes.zmjjkkk.fun/" target="_blank">知识库</a><button class="btn" onclick="setView('security')">安全状态</button></div>
+        </div>
+        <div class="status-grid">
+          ${metricCard('服务在线', `${data.summary.online}/${data.summary.total}`, `${data.summary.degraded} 降级 · ${data.summary.offline} 离线`, data.summary.total ? data.summary.online / data.summary.total * 100 : 0)}
+          ${metricCard('CPU', `${m.cpu_percent.toFixed(0)}%`, `${m.cpu_count || '-'} cores · load ${m.loadavg.map(x => x.toFixed(2)).join(' / ')}`, m.cpu_percent)}
+          ${metricCard('内存', `${m.memory.percent.toFixed(0)}%`, `${fmtBytes(m.memory.used)} / ${fmtBytes(m.memory.total)}`, m.memory.percent)}
+          ${metricCard('磁盘', `${m.disk.percent.toFixed(0)}%`, `${fmtBytes(m.disk.free)} free · uptime ${fmtUptime(m.uptime_seconds)}`, m.disk.percent)}
+        </div>
+        <div class="section-head"><div><h3>核心入口</h3><p>日常最常用的服务入口，仍保留旧子域作为回滚和兼容入口。</p></div><button class="btn" onclick="setView('services')">查看全部</button></div>
+        <div class="grid">${pinned.map(serviceCard).join('')}</div>
+        <div class="section-head"><div><h3>快捷 Dock</h3><p>按任务场景进入不同区域。</p></div></div>
+        <div class="quick-grid">
+          ${quick('Agent 管理', 'Hermes / OpenClaw / 模型配置', 'bot', 'https://agent.zmjjkkk.fun/')}
+          ${quick('服务器监控', 'CPU、内存、磁盘、网络', 'activity', 'https://monitor.zmjjkkk.fun/')}
+          ${quick('知识库', 'Obsidian Vault 浏览', 'book', 'https://notes.zmjjkkk.fun/')}
+          ${quick('文件浏览', '服务器目录与文件入口', 'folder', 'https://files.zmjjkkk.fun/')}
+        </div>
+      `;
+      hydrateIcons($('#view-overview'));
+    }
+
+    function quick(title, desc, ico, href) {
+      return `<a class="quick-card" href="${href}" target="_blank" rel="noopener"><div class="quick-icon">${icon(ico)}</div><div><strong>${esc(title)}</strong><span>${esc(desc)}</span></div></a>`;
+    }
+
+    function renderServices() {
+      const services = state.data.services.filter(serviceMatches);
+      const groups = [...new Set(services.map(s => s.group))];
+      $('#view-services').innerHTML = `
+        <div class="section-head"><div><h3>服务地图</h3><p>${services.length} 个匹配服务，按功能域分组。</p></div></div>
+        <div class="empty" id="servicesEmpty">没有匹配的服务</div>
+        ${groups.map(g => `<div class="section-head"><div><h3>${esc(g)}</h3></div></div><div class="grid">${services.filter(s => s.group === g).map(serviceCard).join('')}</div>`).join('')}
+      `;
+      $('#servicesEmpty').style.display = services.length ? 'none' : 'block';
+      hydrateIcons($('#view-services'));
+    }
+
+    async function renderAgents() {
+      $('#view-agents').innerHTML = `<div class="panel loading">正在读取 Agent 状态…</div>`;
+      try {
+        const res = await fetch('/api/agents/summary');
+        const data = await res.json();
+        const agents = data.agents.dashboard?.agents || [];
+        $('#view-agents').innerHTML = `
+          <div class="section-head"><div><h3>Agent 控制中心</h3><p>OpenClaw 与 Hermes 保持独立运行，ServerHub 只做统一观测入口。</p></div><a class="btn primary" href="https://agent.zmjjkkk.fun/" target="_blank">打开完整控制台</a></div>
+          <div class="grid two">${agents.map(agent => `<article class="service-card ${agent.running ? 'online' : 'offline'}"><div class="card-top"><div class="service-main"><div class="service-icon">${icon(agent.id === 'openclaw' ? 'paw' : 'bot')}</div><div class="service-title"><h4>${esc(agent.name)}</h4><p>${esc(agent.kind)} · PID ${esc(agent.pid || '-')}</p></div></div><span class="status-pill ${agent.running ? 'online' : 'offline'}">${agent.running ? '运行中' : '离线'}</span></div><div class="desc">${esc(agent.description)}</div><div class="meta"><div>模型<br><strong>${esc(agent.model || '-')}</strong></div><div>Provider<br><strong>${esc(agent.provider || (agent.providers || []).join(', ') || '-')}</strong></div><div>配置<br><strong>${esc(agent.config_path || '-')}</strong></div><div>日志<br><strong>${esc(agent.log_path || '-')}</strong></div></div></article>`).join('')}</div>
+          <div class="section-head"><div><h3>OpenClaw Gateway</h3><p>${esc(JSON.stringify(data.agents.openclaw || {}))}</p></div></div>
+        `;
+        hydrateIcons($('#view-agents'));
+      } catch (e) {
+        $('#view-agents').innerHTML = `<div class="notice">Agent 状态读取失败：${esc(e.message)}</div>`;
+      }
+    }
+
+    function renderTasks() {
+      const jobs = state.data.tasks.hermes_jobs || [];
+      $('#view-tasks').innerHTML = `<div class="section-head"><div><h3>任务与 Cron</h3><p>当前只读展示，不在公网入口直接修改任务。</p></div></div><div class="panel scroll"><table class="table"><thead><tr><th>任务</th><th>计划</th><th>状态</th><th>投递</th></tr></thead><tbody>${jobs.map(j => `<tr><td>${esc(j.name)}<br><span class="pill">${esc(j.id)}</span></td><td>${esc(j.schedule || '-')}</td><td>${j.paused ? '暂停' : '启用'}</td><td>${esc(j.deliver || '-')}</td></tr>`).join('') || '<tr><td colspan="4">未发现任务文件</td></tr>'}</tbody></table></div>`;
+    }
+
+    function renderBackups() {
+      const backups = state.data.backups.recent || [];
+      $('#view-backups').innerHTML = `<div class="section-head"><div><h3>备份与回滚</h3><p>ServerHub 上线前已备份旧前端、Nginx、systemd 和服务清单。</p></div></div><div class="panel scroll"><table class="table"><thead><tr><th>备份</th><th>路径</th><th>时间</th></tr></thead><tbody>${backups.map(b => `<tr><td>${esc(b.name)}</td><td>${esc(b.path)}</td><td>${esc(b.mtime)}</td></tr>`).join('')}</tbody></table></div>`;
+    }
+
+    function renderSecurity() {
+      const sec = state.data.security;
+      $('#view-security').innerHTML = `<div class="section-head"><div><h3>安全边界</h3><p>写操作禁用，local-only 服务不提供公网入口。</p></div></div><div class="grid two"><div class="panel"><h3>风险提醒</h3>${sec.warnings.length ? sec.warnings.map(w => `<div class="notice">${esc(w.title)}<br>${esc(w.detail)}</div>`).join('') : '<p class="desc">当前聚合层未发现高危暴露规则。</p>'}</div><div class="panel"><h3>写操作策略</h3><p class="desc">${esc(sec.write_operations)}。重启、删除、修改配置、任务编辑都不在 ServerHub 公网入口开放。</p></div></div><div class="section-head"><div><h3>端口视图</h3></div></div><div class="grid two"><div class="panel"><h3>公网/受保护</h3>${sec.public_or_protected_ports.map(x => `<p>${esc(x.name)} · ${esc(x.port)} · ${esc(x.exposure)}</p>`).join('')}</div><div class="panel"><h3>本机限定</h3>${sec.local_only_ports.map(x => `<p>${esc(x.name)} · ${esc(x.port)}</p>`).join('')}</div></div>`;
+    }
+
+    async function loadLogs() {
+      const view = $('#view-logs');
+      const sources = ['serverhub','agents','openclaw','monitor','memory','nginx'];
+      if (!view.innerHTML) view.innerHTML = `<div class="section-head"><div><h3>日志观察台</h3><p>只读 journalctl tail。</p></div><button class="btn" id="reloadLogs">刷新日志</button></div><div class="log-panel"><div class="log-tabs">${sources.map(s => `<button data-log="${s}">${s}</button>`).join('')}</div><pre class="logs" id="logBox">加载中…</pre></div>`;
+      $$('.log-tabs button', view).forEach(b => b.classList.toggle('active', b.dataset.log === state.logSource));
+      $('#reloadLogs')?.addEventListener('click', loadLogs, { once: true });
+      $('.log-tabs', view)?.addEventListener('click', e => { const b = e.target.closest('button[data-log]'); if (b) { state.logSource = b.dataset.log; loadLogs(); } }, { once: true });
+      try {
+        const res = await fetch(`/api/logs/${state.logSource}?lines=180`);
+        const data = await res.json();
+        $('#logBox').textContent = (data.lines || []).join('\n') || '暂无日志';
+        $('#logBox').scrollTop = $('#logBox').scrollHeight;
+      } catch (e) { $('#logBox').textContent = e.message; }
+    }
+
+    function renderAll() {
+      if (!state.data) return;
+      renderOverview(); renderServices(); renderTasks(); renderBackups(); renderSecurity();
+      const active = location.hash.replace('#','') || 'overview';
+      if (active === 'agents') renderAgents();
+      if (active === 'logs') loadLogs();
+    }
+
+    async function refresh() {
+      document.body.classList.add('loading');
+      try {
+        const res = await fetch('/api/state', { cache: 'no-store' });
+        state.data = await res.json();
+        renderAll();
+      } finally { document.body.classList.remove('loading'); }
+    }
+
+    function boot() {
+      renderNav(); hydrateIcons();
+      $('#refreshBtn').addEventListener('click', refresh);
+      $('#globalSearch').addEventListener('input', e => { state.q = e.target.value; renderAll(); });
+      window.addEventListener('keydown', e => { if (e.key === '/' && document.activeElement !== $('#globalSearch')) { e.preventDefault(); $('#globalSearch').focus(); } if (e.key === 'Escape') { $('#globalSearch').value = ''; state.q = ''; renderAll(); } });
+      window.addEventListener('hashchange', () => { const id = location.hash.replace('#','') || 'overview'; setView(navItems.some(x => x[0] === id) ? id : 'overview'); if (id === 'agents') renderAgents(); });
+      setView(navItems.some(x => x[0] === location.hash.replace('#','')) ? location.hash.replace('#','') : 'overview');
+      refresh();
+      setInterval(() => { if (!document.hidden) refresh(); }, 60000);
+    }
+    document.addEventListener('DOMContentLoaded', boot);
+  </script>
+</body>
+</html>

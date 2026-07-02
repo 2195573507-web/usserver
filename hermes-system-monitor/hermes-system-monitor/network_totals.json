@@ -1,0 +1,12 @@
+{
+  "day": "2026-07-02",
+  "month": "2026-07",
+  "day_rx_base": 206648153662,
+  "day_tx_base": 198839867934,
+  "month_rx_base": 160512133128,
+  "month_tx_base": 148297100584,
+  "day_rx_peak_mbps": 41.797,
+  "day_tx_peak_mbps": 49.9099,
+  "month_rx_peak_mbps": 48.8824,
+  "month_tx_peak_mbps": 54.5128
+}

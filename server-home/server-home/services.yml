@@ -1,0 +1,130 @@
+services:
+  - name: Agent 控制台
+    unit: hermes-dashboard-web
+    icon: 🤖
+    port: 9100
+    path: /opt/hermes-dashboard
+    group: AI / Agents
+    url: http://agent.zmjjkkk.fun/
+    health_url: http://[REDACTED_IP]:9100/api/status
+    desc: Hermes 模型配置、会话、Token、成本、Cache 与控制台
+    tags: [ai, hermes, dashboard, agent]
+    exposure: protected
+    pinned: true
+
+  - name: System Monitor
+    unit: hermes-system-monitor
+    icon: 📈
+    port: 9000
+    path: /opt/hermes-system-monitor
+    group: 系统监控
+    url: http://monitor.zmjjkkk.fun/
+    health_url: http://[REDACTED_IP]:9000/api/system/metrics/latest
+    desc: CPU、内存、磁盘、网络与历史指标
+    tags: [monitor, system, metrics]
+    exposure: protected
+    pinned: true
+
+  - name: OpenClaw Gateway
+    unit: openclaw-gateway
+    icon: 🐾
+    port: 18789
+    path: /opt/openclaw
+    group: AI / Agents
+    url: null
+    health_url: http://[REDACTED_IP]:18789/health
+    desc: OpenClaw QQBot 网关、工具运行时与本地 agent
+    tags: [ai, openclaw, qqbot, local]
+    exposure: local-only
+    pinned: true
+
+  - name: Shared Agent Memory
+    unit: shared-agent-memory
+    icon: 🧠
+    port: 9400
+    path: /opt/shared-agent-memory
+    group: 知识与记忆
+    url: null
+    health_url: http://[REDACTED_IP]:9400/health
+    desc: Hermes / OpenClaw 共享长期记忆服务
+    tags: [memory, shared, knowledge, api]
+    exposure: local-only
+    pinned: true
+
+  - name: 知识库
+    unit: obsidian-knowledge-web
+    icon: 📚
+    port: 9200
+    path: /opt/obsidian-knowledge-web
+    group: 知识与记忆
+    url: http://notes.zmjjkkk.fun/
+    health_url: http://[REDACTED_IP]:9200/api/status
+    desc: Obsidian vault 文件与知识图谱浏览
+    tags: [notes, obsidian, knowledge]
+    exposure: protected
+    pinned: true
+
+  - name: 文件浏览
+    unit: server-file-web
+    icon: 🗂️
+    port: 9300
+    path: /opt/server-file-web
+    group: 文件与数据
+    url: http://files.zmjjkkk.fun/
+    health_url: http://[REDACTED_IP]:9300/
+    desc: 服务器文件结构浏览
+    tags: [files, data, browser]
+    exposure: protected
+    pinned: true
+
+  - name: Hermes Gateway
+    unit: hermes-gateway
+    icon: 💬
+    port: null
+    path: /opt/hermes-agent
+    group: AI / Agents
+    url: null
+    health_url: null
+    desc: QQBot/消息平台接入与 Hermes 对话运行时
+    tags: [hermes, gateway, qq]
+    exposure: internal
+    pinned: false
+
+  - name: Ollama
+    unit: ollama
+    icon: 🦙
+    port: 11434
+    path: /www/data/ollama
+    group: 系统监控
+    url: null
+    health_url: http://[REDACTED_IP]:11434/api/tags
+    desc: 本地模型与 embedding 服务
+    tags: [ollama, local, embedding]
+    exposure: local-only
+    pinned: false
+
+  - name: nginx
+    unit: nginx
+    icon: 🌐
+    port: 80
+    path: /etc/nginx
+    group: 入口与代理
+    url: http://server.zmjjkkk.fun/
+    health_url: http://[REDACTED_IP]/
+    desc: 公网入口与反向代理
+    tags: [nginx, proxy, public]
+    exposure: public
+    pinned: false
+
+  - name: Server Home
+    unit: server-home
+    icon: 🏠
+    port: 8000
+    path: /opt/server-home
+    group: 入口与代理
+    url: http://server.zmjjkkk.fun/
+    health_url: http://[REDACTED_IP]:8000/api/health
+    desc: 当前服务器工作台与服务启动器
+    tags: [home, dashboard, launcher]
+    exposure: public
+    pinned: false

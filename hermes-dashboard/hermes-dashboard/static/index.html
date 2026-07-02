@@ -1,0 +1,3554 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>服务器智能体控制台</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+/* ===== CSS Variables (Dark Theme) ===== */
+:root {
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-card: #1c2333;
+  --bg-card-hover: #21283a;
+  --border-color: #30363d;
+  --border-light: #21262d;
+  --text-primary: #e6edf3;
+  --text-secondary: #8b949e;
+  --text-muted: #6e7681;
+  --accent-blue: #58a6ff;
+  --accent-green: #3fb950;
+  --accent-yellow: #d2991d;
+  --accent-red: #f85149;
+  --accent-purple: #a371f7;
+  --accent-orange: #db6d28;
+  --accent-cyan: #39d2c0;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --transition: 0.2s ease;
+  --btn-hover: #30363d;
+  --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif;
+}
+
+/* ===== Reset ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; scroll-behavior: smooth; }
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ===== Layout ===== */
+.app-header {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 24px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(12px);
+}
+.app-header .logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+.app-header .logo .icon { font-size: 1.5rem; }
+.app-header .status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+  animation: pulse 2s infinite;
+}
+.app-header .status-dot.online { background: var(--accent-green); }
+.app-header .status-dot.offline { background: var(--accent-red); animation: none; }
+.app-header .header-right { display: flex; align-items: center; gap: 16px; font-size: 0.85rem; color: var(--text-secondary); }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ===== Tabs ===== */
+.tab-nav {
+  display: flex;
+  gap: 4px;
+  padding: 12px 24px 0;
+  background: var(--bg-primary);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-bottom: 1px solid var(--border-light);
+  position: sticky;
+  top: 56px;
+  z-index: 99;
+}
+.tab-nav::-webkit-scrollbar { height: 0; }
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  white-space: nowrap;
+  transition: all var(--transition);
+  position: relative;
+}
+.tab-btn:hover { color: var(--text-primary); background: var(--bg-card); }
+.tab-btn.active {
+  color: var(--accent-blue);
+  background: var(--bg-card);
+  box-shadow: 0 -2px 0 var(--accent-blue);
+}
+.tab-btn .tab-icon { font-size: 1.1rem; }
+
+/* ===== Main Content ===== */
+.main-content {
+  padding: 20px 24px 40px;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+.tab-panel { display: none; animation: fadeIn 0.3s ease; }
+.tab-panel.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ===== KPI Cards ===== */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.kpi-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+.kpi-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-color);
+  transform: translateY(-2px);
+}
+.kpi-card .kpi-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.kpi-card .kpi-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+.kpi-card .kpi-sub {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+.kpi-card .kpi-icon {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 2rem;
+  opacity: 0.15;
+}
+.kpi-card.accent-blue { border-left: 3px solid var(--accent-blue); }
+.kpi-card.accent-green { border-left: 3px solid var(--accent-green); }
+.kpi-card.accent-purple { border-left: 3px solid var(--accent-purple); }
+.kpi-card.accent-orange { border-left: 3px solid var(--accent-orange); }
+.kpi-card.accent-cyan { border-left: 3px solid var(--accent-cyan); }
+
+/* ===== Card / Panel ===== */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.card-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.card-body { padding: 16px 20px; }
+
+/* ===== Grid Layouts ===== */
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.grid-full { margin-bottom: 20px; }
+
+/* ===== Charts ===== */
+.chart-container {
+  width: 100%;
+  height: 360px;
+  min-height: 280px;
+}
+
+/* ===== Tables ===== */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+thead th {
+  text-align: left;
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border-bottom: 2px solid var(--border-color);
+  white-space: nowrap;
+}
+tbody td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+tbody tr { transition: background var(--transition); }
+tbody tr:hover { background: var(--bg-card-hover); }
+tbody td .mono { font-family: var(--font-mono); font-size: 0.82rem; }
+.text-green { color: var(--accent-green); }
+.text-yellow { color: var(--accent-yellow); }
+.text-red { color: var(--accent-red); }
+.text-blue { color: var(--accent-blue); }
+.text-muted { color: var(--text-muted); }
+.text-right { text-align: right; }
+.text-center { text-align: center; }
+
+/* ===== Status Badges ===== */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.status-badge.online { background: rgba(63,185,80,0.15); color: var(--accent-green); }
+.status-badge.offline { background: rgba(248,81,73,0.15); color: var(--accent-red); }
+.status-badge.warning { background: rgba(210,153,29,0.15); color: var(--accent-yellow); }
+.status-dot-sm {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.status-dot-sm.green { background: var(--accent-green); }
+.status-dot-sm.red { background: var(--accent-red); }
+.status-dot-sm.yellow { background: var(--accent-yellow); }
+
+/* ===== Provider Cards ===== */
+.provider-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.provider-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+}
+.provider-card .provider-name {
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.provider-card .provider-field {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 0;
+  font-size: 0.82rem;
+}
+.provider-card .provider-field .label { color: var(--text-muted); }
+.provider-card .provider-field .value { color: var(--text-primary); font-family: var(--font-mono); font-size: 0.78rem; }
+
+/* ===== Editable provider form ===== */
+.provider-card input {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 6px 10px;
+  border-radius: 6px;
+  width: 100%;
+  max-width: 260px;
+}
+.provider-card input:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 2px rgba(88,166,255,0.2);
+}
+.provider-card .field-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+}
+.provider-card .field-row .field-label {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  min-width: 72px;
+}
+.provider-card .card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-light);
+}
+.btn-sm {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  font-size: 0.8rem;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.btn-sm-edit {
+  background: var(--bg-secondary);
+  color: var(--accent-blue);
+  border-color: var(--accent-blue);
+}
+.btn-sm-edit:hover { background: var(--accent-blue); color: #fff; }
+.btn-sm-save {
+  background: var(--accent-green);
+  border-color: var(--accent-green);
+  color: #fff;
+}
+.btn-sm-save:hover { opacity: 0.85; }
+.btn-sm-cancel {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border-color: var(--border-color);
+}
+.btn-sm-cancel:hover { background: var(--btn-hover); }
+
+/* ===== Provider select dropdown ===== */
+.provider-select {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 6px 10px;
+  border-radius: 6px;
+  flex: 1;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238b949e' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+.provider-select:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 2px rgba(88,166,255,0.2);
+}
+.provider-custom-input {
+  display: none;
+  margin-top: 8px;
+}
+
+/* ===== Config YAML Display ===== */
+.config-block {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  white-space: pre;
+  max-height: 500px;
+  overflow-y: auto;
+}
+.config-block .key { color: var(--accent-blue); }
+.config-block .string { color: var(--accent-green); }
+.config-block .number { color: var(--accent-orange); }
+.config-block .boolean { color: var(--accent-purple); }
+
+/* ===== Gauge Card ===== */
+.gauge-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.gauge-value {
+  font-size: 3.5rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  line-height: 1;
+}
+.gauge-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-top: 8px;
+}
+
+/* ===== Platform Status ===== */
+.platform-status-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.platform-status-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+.platform-status-item .platform-icon {
+  font-size: 1.5rem;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+}
+
+/* ===== Pagination ===== */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+.pagination button {
+  padding: 6px 14px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  transition: all var(--transition);
+}
+.pagination button:hover { background: var(--bg-card-hover); border-color: var(--accent-blue); }
+.pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+.pagination button.active { background: var(--accent-blue); border-color: var(--accent-blue); color: #fff; }
+.pagination .page-info { color: var(--text-secondary); font-size: 0.82rem; }
+
+/* ===== Loading ===== */
+.loading-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+.spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--accent-blue);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* ===== Toast ===== */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 12px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  animation: slideUp 0.3s ease;
+  font-size: 0.85rem;
+  max-width: 400px;
+}
+.toast.error { border-left: 3px solid var(--accent-red); }
+.toast.success { border-left: 3px solid var(--accent-green); }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+
+/* ===== Global Filters ===== */
+.time-range-bar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:10px 0 16px; }
+.time-range-label { color:var(--text-muted); font-size:0.78rem; }
+.time-range-btn { padding:5px 12px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-secondary); border-radius:999px; cursor:pointer; font-size:0.78rem; transition:all var(--transition); }
+.time-range-btn:hover { border-color:var(--accent-blue); color:var(--text-primary); }
+.time-range-btn.active { background:var(--accent-blue); border-color:var(--accent-blue); color:#fff; }
+
+/* ===== Agent Console UX ===== */
+.ops-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(88,166,255,0.20), transparent 34%),
+    linear-gradient(135deg, rgba(88,166,255,0.12), rgba(163,113,247,0.08));
+  border: 1px solid rgba(88,166,255,0.22);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+.ops-bar .ops-title { font-weight: 850; font-size: 1.18rem; letter-spacing: .2px; }
+.ops-bar .ops-subtitle { color: var(--text-secondary); font-size: 0.82rem; margin-top: 4px; line-height: 1.5; max-width: 760px; }
+.ops-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:flex-end; }
+.agent-console-grid { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(360px,.75fr); gap:18px; align-items:start; margin-top:18px; }
+.agent-section-title { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:4px 0 10px; color:var(--text-secondary); font-size:.78rem; text-transform:uppercase; letter-spacing:.08em; }
+.agent-card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(360px,1fr)); gap:16px; }
+.agent-card {
+  position:relative;
+  overflow:hidden;
+  background:linear-gradient(180deg, rgba(28,35,51,.98), rgba(22,27,34,.98));
+  border:1px solid var(--border-color);
+  border-radius:var(--radius-lg);
+  padding:18px;
+  box-shadow:var(--shadow-sm);
+  transition:transform var(--transition), border-color var(--transition), box-shadow var(--transition);
+}
+.agent-card:hover { transform:translateY(-2px); box-shadow:var(--shadow-md); border-color:rgba(88,166,255,.38); }
+.agent-card::before { content:''; position:absolute; inset:0 0 auto 0; height:3px; background:var(--border-color); }
+.agent-card.running::before { background:linear-gradient(90deg,var(--accent-green),var(--accent-cyan)); }
+.agent-card.stopped::before { background:linear-gradient(90deg,var(--accent-red),var(--accent-orange)); }
+.agent-card-selected { border-color: var(--accent-blue) !important; box-shadow: 0 0 0 1px rgba(88,166,255,0.35), var(--shadow-md) !important; }
+.agent-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.agent-ident { display:flex; align-items:center; gap:12px; min-width:0; }
+.agent-avatar { width:44px; height:44px; display:grid; place-items:center; border-radius:14px; background:rgba(88,166,255,.10); border:1px solid rgba(88,166,255,.22); font-size:1.6rem; flex:0 0 auto; }
+.agent-name { font-size:1rem; font-weight:800; color:var(--text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.agent-kind { color:var(--text-muted); font-size:.72rem; margin-top:2px; font-family:var(--font-mono); }
+.agent-desc { color:var(--text-secondary); font-size:.78rem; line-height:1.5; min-height:2.2em; margin-bottom:12px; }
+.agent-meta-grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; margin: 12px 0; }
+.agent-meta-item { padding: 9px 10px; background: rgba(13,17,23,.72); border:1px solid var(--border-light); border-radius: 10px; min-width:0; }
+.agent-meta-label { color: var(--text-muted); font-size:0.68rem; margin-bottom:3px; }
+.agent-meta-value { color: var(--text-primary); font-family: var(--font-mono); font-size:0.76rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.agent-model-row{padding:11px;border-radius:12px;background:linear-gradient(135deg,rgba(88,166,255,.09),rgba(163,113,247,.06));border:1px solid var(--border-light);margin:10px 0}
+.agent-path-grid { display:grid; gap:6px; margin:10px 0; }
+.agent-mini-path{font-family:var(--font-mono);font-size:.68rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;display:block;padding:6px 8px;border:1px solid var(--border-light);border-radius:8px;background:rgba(13,17,23,.45)}
+.agent-chip-row { display:flex; gap:6px; flex-wrap:wrap; margin:10px 0; min-height:24px; }
+.agent-actions-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin-top:14px}.agent-actions-row .btn-sm{justify-content:center;text-align:center;min-width:0}
+.btn-loading { opacity: 0.65; pointer-events: none; position: relative; }
+.btn-loading::after { content:'…'; margin-left: 3px; animation: pulse 1s infinite; }
+.empty-state { text-align:center; color:var(--text-muted); padding: 28px 16px; }
+.empty-state .empty-icon { font-size: 2rem; margin-bottom: 8px; }
+.inline-alert { padding:10px 12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-secondary); color:var(--text-secondary); font-size:0.8rem; }
+.inline-alert.error { border-color: rgba(248,81,73,0.5); color: var(--accent-red); }
+.inline-alert.success { border-color: rgba(63,185,80,0.5); color: var(--accent-green); }
+.agent-detail-panel { display:none; margin-top:10px; padding:10px; background:rgba(13,17,23,.55); border:1px solid var(--border-light); border-radius:10px; color:var(--text-secondary); font-size:0.76rem; line-height:1.7; }
+.agent-detail-panel.open { display:block; }
+.agent-health-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin:0 0 16px 0}
+.agent-health-pill{display:flex;align-items:center;gap:10px;padding:12px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:12px;box-shadow:var(--shadow-sm);min-width:0}
+.agent-health-pill.ok{border-color:rgba(63,185,80,.45);background:linear-gradient(135deg,rgba(63,185,80,.10),rgba(17,24,39,.4))}
+.agent-health-pill.bad{border-color:rgba(248,81,73,.45);background:linear-gradient(135deg,rgba(248,81,73,.10),rgba(17,24,39,.4))}
+.agent-health-icon{font-size:1.18rem;flex:0 0 auto}.agent-health-title{font-weight:750;font-size:.82rem}.agent-health-sub{color:var(--text-muted);font-size:.7rem;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.agent-log-card { position:sticky; top:128px; overflow:hidden; }
+.agent-log-toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--border-color);background:var(--bg-secondary)}
+.agent-log-meta{font-size:.72rem;color:var(--text-muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.agent-log-box { margin:0;padding:12px;font-size:0.72rem;max-height:520px;min-height:360px;overflow-y:auto;background:var(--bg-primary);color:var(--text-secondary);font-family:var(--font-mono);white-space:pre-wrap;word-break:break-word;line-height:1.55; }
+.agent-log-box.loading { color:var(--accent-yellow); }
+@media (max-width: 1100px) { .agent-console-grid { grid-template-columns:1fr; } .agent-log-card { position:static; } }
+@media(max-width:720px){.agent-actions-row{grid-template-columns:repeat(2,minmax(0,1fr))}.agent-meta-grid{grid-template-columns:1fr}.ops-bar{grid-template-columns:1fr}.ops-actions{justify-content:flex-start}.agent-card-grid{grid-template-columns:1fr}.agent-health-strip{grid-template-columns:1fr}}
+.model-display { display:flex; align-items:flex-start; gap:6px; flex-wrap:wrap; min-width:0; width:100%; overflow:visible; }
+.model-provider-pill { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; background:rgba(88,166,255,0.12); border:1px solid rgba(88,166,255,0.28); color:var(--accent-blue); font-size:0.68rem; font-weight:700; flex:0 0 auto; }
+.model-name-chip { display:inline-flex; align-items:center; max-width:100%; min-width:0; padding:3px 8px; border-radius:7px; background:var(--bg-primary); border:1px solid var(--border-color); color:var(--text-primary); font-family:var(--font-mono); font-size:0.74rem; overflow-wrap:anywhere; word-break:break-word; white-space:normal; line-height:1.35; }
+.model-name-chip.active { border-color:var(--accent-green); color:var(--accent-green); background:rgba(63,185,80,0.08); }
+.model-count-badge { color:var(--text-muted); font-size:0.68rem; }
+.model-summary-card { margin-top:10px; padding:10px; border:1px solid var(--border-light); background:var(--bg-secondary); border-radius:8px; }
+.model-picker { margin-top:8px; padding:10px; background:var(--bg-secondary); border:1px solid var(--border-light); border-radius:10px; max-height:none; overflow:visible; }
+.model-picker-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
+.model-picker-title { display:flex; align-items:center; gap:6px; color:var(--accent-blue); font-size:0.76rem; font-weight:700; min-width:0; }
+.model-picker-actions { display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+.model-search { width:100%; min-width:120px; background:var(--bg-primary); border:1px solid var(--border-color); color:var(--text-primary); padding:7px 10px; border-radius:8px; font-size:0.76rem; font-family:var(--font-mono); }
+.model-search:focus { outline:none; border-color:var(--accent-blue); box-shadow:0 0 0 2px rgba(88,166,255,0.18); }
+.model-list { display:grid; grid-template-columns:1fr; gap:6px; margin-top:8px; }
+.model-option { display:flex; align-items:center; gap:9px; width:100%; min-width:0; padding:8px 10px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-primary); color:var(--text-secondary); cursor:pointer; transition:all var(--transition); }
+.model-option:hover { border-color:rgba(88,166,255,0.55); color:var(--text-primary); background:rgba(88,166,255,0.06); }
+.model-option input { flex:0 0 auto; margin:0; accent-color:var(--accent-blue); }
+.model-option-name { flex:1 1 auto; min-width:0; font-family:var(--font-mono); font-size:0.78rem; line-height:1.35; white-space:normal; overflow-wrap:anywhere; word-break:normal; }
+.model-option-mark { flex:0 0 auto; color:var(--accent-green); font-size:0.8rem; font-weight:800; }
+.model-option.active { border-color:var(--accent-green); box-shadow:0 0 0 1px rgba(63,185,80,0.35); color:var(--accent-green); background:rgba(63,185,80,0.08); }
+.model-option.dimmed { opacity:0.56; }
+.model-empty { display:none; padding:12px; color:var(--text-muted); text-align:center; border:1px dashed var(--border-color); border-radius:8px; font-size:0.76rem; }
+.model-picker.collapsed .model-option.extra-model { display:none; }
+.model-picker.searching .model-option.extra-model { display:flex; }
+.model-picker.searching .model-toggle { display:none; }
+.model-toggle { width:100%; margin-top:8px; }
+.config-hero { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding:14px 16px; margin-bottom:16px; background:linear-gradient(135deg, rgba(88,166,255,0.10), rgba(57,210,192,0.07)); border:1px solid var(--border-color); border-radius:var(--radius-md); }
+.config-hero-title { font-size:1.05rem; font-weight:800; margin-bottom:4px; }
+.config-hero-subtitle { color:var(--text-secondary); font-size:0.8rem; line-height:1.45; }
+.config-summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-bottom:16px; }
+.config-summary-item { padding:10px 12px; background:var(--bg-secondary); border:1px solid var(--border-light); border-radius:10px; min-width:0; }
+.config-summary-label { color:var(--text-muted); font-size:0.7rem; margin-bottom:5px; }
+.config-summary-value { color:var(--text-primary); font-family:var(--font-mono); font-size:0.78rem; overflow-wrap:anywhere; }
+.config-card-title { display:flex; align-items:center; gap:8px; font-weight:700; }
+.config-card-subtitle { color:var(--text-muted); font-size:0.72rem; font-weight:400; margin-left:8px; }
+.form-grid-2 { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.form-field label { display:block; font-size:0.78rem; color:var(--text-muted); margin-bottom:4px; }
+.form-field input, .form-field select, .form-field textarea { width:100%; background:var(--bg-secondary); border:1px solid var(--border-color); color:var(--text-primary); padding:8px 12px; border-radius:6px; font-family:var(--font-mono); }
+.form-field input:focus, .form-field select:focus, .form-field textarea:focus { outline:none; border-color:var(--accent-blue); box-shadow:0 0 0 2px rgba(88,166,255,0.18); }
+@media (max-width: 768px) { .ops-bar { align-items:flex-start; flex-direction:column; } .agent-meta-grid { grid-template-columns:1fr; } .model-display { flex-direction:column; align-items:stretch; gap:5px; } .model-provider-pill { width:max-content; max-width:100%; } .model-name-chip { display:block; width:100%; } .model-picker-head { align-items:stretch; flex-direction:column; } .model-picker-actions { justify-content:flex-start; } .model-option { align-items:flex-start; } .provider-field { align-items:flex-start; gap:6px; } .provider-card .provider-field .value { white-space:normal; overflow-wrap:anywhere; text-align:right; max-width:62%; } .config-hero { flex-direction:column; } .form-grid-2 { grid-template-columns:1fr; } }
+
+
+/* ===== Agent Console V2 ===== */
+.agent-hero-v2{position:relative;overflow:hidden;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:center;padding:26px 28px;margin-bottom:18px;border:1px solid rgba(88,166,255,.24);border-radius:24px;background:linear-gradient(135deg,rgba(12,18,32,.98),rgba(24,32,52,.96));box-shadow:0 18px 60px rgba(0,0,0,.32)}
+.agent-hero-glow{position:absolute;inset:-35% -15% auto auto;width:520px;height:320px;background:radial-gradient(circle,rgba(88,166,255,.28),transparent 65%);filter:blur(4px);pointer-events:none}.agent-hero-content,.agent-hero-actions{position:relative}.agent-eyebrow,.agent-section-kicker{font-size:.68rem;letter-spacing:.16em;color:var(--accent-cyan);font-weight:800;text-transform:uppercase}.agent-hero-v2 h1{font-size:2rem;line-height:1.1;margin:6px 0 8px;font-weight:900}.agent-hero-v2 p{max-width:780px;color:var(--text-secondary);font-size:.92rem}.agent-hero-meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.agent-fleet-status,.agent-hero-time{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--border-color);border-radius:999px;background:rgba(13,17,23,.55);font-size:.75rem;color:var(--text-secondary)}.agent-fleet-status.ok{border-color:rgba(63,185,80,.45);color:var(--accent-green)}.agent-fleet-status.bad{border-color:rgba(248,81,73,.45);color:var(--accent-red)}.agent-hero-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}.agent-notice-v2{margin-bottom:16px;padding:12px 14px;border-radius:14px;border:1px solid var(--border-color);background:rgba(22,27,34,.88);color:var(--text-secondary)}.agent-notice-v2.success{border-color:rgba(63,185,80,.5);color:var(--accent-green)}.agent-notice-v2.error{border-color:rgba(248,81,73,.5);color:var(--accent-red)}
+.agent-command-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}.agent-command-card{position:relative;overflow:hidden;padding:16px;border:1px solid var(--border-color);border-radius:18px;background:linear-gradient(180deg,rgba(28,35,51,.96),rgba(16,22,34,.96));box-shadow:var(--shadow-sm)}.agent-command-card.primary{border-color:rgba(63,185,80,.4)}.agent-command-label{font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.09em}.agent-command-value{font-size:1.75rem;font-family:var(--font-mono);font-weight:900;margin-top:4px}.agent-command-value.small{font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.agent-command-total{font-size:.9rem;color:var(--text-muted)}.agent-command-sub{font-size:.72rem;color:var(--text-secondary);margin-top:2px}
+.agent-dependency-panel,.agent-left-rail,.agent-observer-card,.agent-activity-card{border:1px solid var(--border-color);border-radius:18px;background:rgba(22,27,34,.72);box-shadow:var(--shadow-sm)}.agent-dependency-panel{padding:16px;margin-bottom:18px}.agent-panel-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:12px}.agent-panel-heading.compact{margin-bottom:8px}.agent-panel-heading h2{font-size:1rem;margin-top:3px}.agent-panel-hint{font-size:.74rem;color:var(--text-muted)}.agent-health-strip-v2{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}.agent-health-pill-v2{display:flex;align-items:center;gap:12px;padding:13px;border:1px solid var(--border-color);border-radius:14px;background:rgba(13,17,23,.52);min-width:0}.agent-health-pill-v2.ok{border-color:rgba(63,185,80,.42);background:linear-gradient(135deg,rgba(63,185,80,.11),rgba(13,17,23,.52))}.agent-health-pill-v2.bad{border-color:rgba(248,81,73,.45);background:linear-gradient(135deg,rgba(248,81,73,.11),rgba(13,17,23,.52))}.agent-health-pill-v2 .icon{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:rgba(255,255,255,.04);font-size:1.2rem}.agent-health-pill-v2 strong{display:block;font-size:.82rem}.agent-health-pill-v2 small{display:block;color:var(--text-muted);font-size:.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.agent-workbench-v2{display:grid;grid-template-columns:minmax(0,1.28fr) minmax(390px,.72fr);gap:18px;align-items:start}.agent-left-rail{padding:16px}.agent-card-grid-v2{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:14px}.agent-service-card-v2{position:relative;overflow:hidden;border:1px solid var(--border-color);border-radius:18px;background:linear-gradient(180deg,rgba(28,35,51,.98),rgba(13,17,23,.94));padding:16px;cursor:pointer;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}.agent-service-card-v2:hover{transform:translateY(-2px);border-color:rgba(88,166,255,.45);box-shadow:var(--shadow-md)}.agent-service-card-v2.selected{border-color:var(--accent-blue);box-shadow:0 0 0 1px rgba(88,166,255,.35),var(--shadow-md)}.agent-service-card-v2.running::before,.agent-service-card-v2.stopped::before{content:'';position:absolute;inset:0 0 auto 0;height:4px}.agent-service-card-v2.running::before{background:linear-gradient(90deg,var(--accent-green),var(--accent-cyan))}.agent-service-card-v2.stopped::before{background:linear-gradient(90deg,var(--accent-red),var(--accent-orange))}.agent-service-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.agent-service-id{display:flex;gap:12px;align-items:center;min-width:0}.agent-service-avatar{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(88,166,255,.16),rgba(163,113,247,.12));border:1px solid rgba(88,166,255,.24);font-size:1.55rem}.agent-service-name{font-weight:900;font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.agent-service-kind{font-size:.7rem;color:var(--text-muted);font-family:var(--font-mono);margin-top:2px}.agent-service-desc{color:var(--text-secondary);font-size:.78rem;line-height:1.5;margin:12px 0}.agent-service-model{padding:10px;border:1px solid var(--border-light);border-radius:13px;background:rgba(88,166,255,.06);margin-bottom:10px}.agent-service-facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.agent-fact{padding:8px;border-radius:10px;background:rgba(13,17,23,.6);border:1px solid var(--border-light);min-width:0}.agent-fact span{display:block;color:var(--text-muted);font-size:.65rem}.agent-fact strong{display:block;font-family:var(--font-mono);font-size:.73rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.agent-service-paths{display:grid;gap:6px;margin:10px 0}.agent-service-paths code{display:block;padding:6px 8px;border-radius:8px;border:1px solid var(--border-light);background:rgba(13,17,23,.45);color:var(--text-muted);font-size:.67rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.agent-service-chips{display:flex;gap:6px;flex-wrap:wrap;min-height:24px}.agent-chip-v2{padding:3px 8px;border-radius:999px;border:1px solid var(--border-color);background:rgba(255,255,255,.03);color:var(--text-secondary);font-size:.68rem}.agent-service-actions{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin-top:13px}.agent-service-actions .btn-sm{justify-content:center;min-width:0}.agent-shortcut-dock{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-top:14px}.agent-shortcut{display:flex;align-items:center;gap:10px;text-align:left;padding:12px;border:1px solid var(--border-color);border-radius:14px;background:rgba(13,17,23,.55);color:var(--text-primary);cursor:pointer;transition:all var(--transition)}.agent-shortcut:hover{border-color:var(--accent-blue);transform:translateY(-1px)}.agent-shortcut span{font-size:1.35rem}.agent-shortcut strong{display:block}.agent-shortcut small{display:block;color:var(--text-muted);font-size:.68rem;margin-top:1px}
+.agent-side-panel-v2{position:sticky;top:128px;display:grid;gap:14px}.agent-observer-card,.agent-activity-card{padding:14px}.agent-observer-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}.agent-observer-head h2{font-size:1rem;margin-top:2px}.agent-log-path-row{display:grid;gap:5px;margin-bottom:10px}.agent-log-path-row span{font-size:.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em}.agent-log-path-row code{display:block;padding:7px 9px;border-radius:9px;background:rgba(13,17,23,.68);border:1px solid var(--border-light);color:var(--text-secondary);font-size:.68rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.agent-log-controls-v2{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}.agent-log-box-v2{margin:0;min-height:390px;max-height:560px;overflow:auto;padding:13px;border-radius:12px;border:1px solid var(--border-light);background:#05070b;color:#9fb0c3;font-family:var(--font-mono);font-size:.72rem;line-height:1.55;white-space:pre-wrap;word-break:break-word}.agent-log-box-v2.loading{color:var(--accent-yellow)}.agent-activity-feed{display:grid;gap:8px;max-height:240px;overflow:auto}.agent-activity-item{display:grid;grid-template-columns:10px 1fr;gap:8px;align-items:start;color:var(--text-secondary);font-size:.74rem}.agent-activity-item span{width:8px;height:8px;margin-top:6px;border-radius:50%;background:var(--accent-blue)}.agent-activity-item.success span{background:var(--accent-green)}.agent-activity-item.error span{background:var(--accent-red)}.agent-activity-item.muted span{background:var(--text-muted)}
+@media(max-width:1180px){.agent-workbench-v2{grid-template-columns:1fr}.agent-side-panel-v2{position:static}.agent-command-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:760px){.agent-hero-v2{grid-template-columns:1fr;padding:20px}.agent-hero-actions{justify-content:flex-start}.agent-command-grid{grid-template-columns:1fr}.agent-card-grid-v2{grid-template-columns:1fr}.agent-service-facts{grid-template-columns:repeat(2,minmax(0,1fr))}.agent-service-actions{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* ===== Responsive ===== */
+
+/* --- Tablet (769px – 1024px) --- */
+@media (min-width: 769px) and (max-width: 1024px) {
+  /* KPI cards: 3 columns */
+  .kpi-row { grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .kpi-card { padding: 14px 16px; }
+  .kpi-card .kpi-value { font-size: 1.5rem; }
+  .kpi-card .kpi-icon { font-size: 1.6rem; right: 10px; }
+
+  /* Charts */
+  .chart-container { height: 260px; min-height: 220px; min-width: 0; }
+
+  /* Tabs */
+  .tab-btn { padding: 8px 14px; font-size: 0.82rem; }
+  .tab-nav { padding: 10px 16px 0; gap: 2px; }
+
+  /* Grids */
+  .grid-2 { gap: 12px; }
+  .main-content { padding: 16px 16px 32px; }
+
+  /* Tables */
+  table { font-size: 0.8rem; }
+  thead th { padding: 8px 10px; font-size: 0.72rem; }
+  tbody td { padding: 8px 10px; font-size: 0.78rem; }
+
+  /* Header */
+  .app-header { padding: 0 16px; height: 52px; }
+  .app-header .logo { font-size: 1.1rem; }
+  .app-header .logo .icon { font-size: 1.3rem; }
+
+  /* Providers & Platforms */
+  .provider-grid { grid-template-columns: repeat(2, 1fr); }
+  .platform-status-list { grid-template-columns: repeat(3, 1fr); }
+
+  /* Card */
+  .card-header { padding: 12px 16px; font-size: 0.85rem; }
+  .card-body { padding: 12px 16px; }
+
+  /* Gauge */
+  .gauge-value { font-size: 2.8rem; }
+
+  /* Buttons / clickable: min 44x44 */
+  .tab-btn { min-height: 44px; min-width: 44px; }
+  .pagination button { min-height: 44px; min-width: 44px; padding: 8px 14px; }
+}
+
+/* --- Phone landscape (481px – 768px) --- */
+@media (max-width: 768px) {
+  /* Layout */
+  .grid-2 { grid-template-columns: 1fr; gap: 12px; }
+  .main-content { padding: 12px 10px 24px; }
+
+  /* KPI cards: 2 columns */
+  .kpi-row { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .kpi-card { padding: 12px 14px; }
+  .kpi-card .kpi-value { font-size: 1.3rem; }
+  .kpi-card .kpi-label { font-size: 0.7rem; }
+  .kpi-card .kpi-sub { font-size: 0.68rem; }
+  .kpi-card .kpi-icon { font-size: 1.4rem; right: 8px; opacity: 0.1; }
+
+  /* Charts */
+  .chart-container { height: 220px; min-height: 180px; min-width: 0; }
+
+  /* Tab nav: horizontal scroll */
+  .tab-nav {
+    padding: 6px 10px 0;
+    gap: 2px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+  }
+  .tab-nav::-webkit-scrollbar { height: 0; }
+  .tab-btn {
+    padding: 8px 12px;
+    font-size: 0.78rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .tab-btn .tab-icon { font-size: 1rem; }
+
+  /* Header */
+  .app-header { padding: 0 10px; height: 48px; }
+  .app-header .logo { font-size: 1rem; gap: 6px; }
+  .app-header .logo .icon { font-size: 1.2rem; }
+  .app-header .header-right { font-size: 0.75rem; gap: 8px; }
+
+  /* Tables */
+  table { font-size: 0.78rem; }
+  thead th { padding: 8px 10px; font-size: 0.7rem; }
+  tbody td { padding: 8px 10px; font-size: 0.75rem; }
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Providers & Platforms */
+  .provider-grid { grid-template-columns: 1fr; }
+  .platform-status-list { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+
+  /* Card */
+  .card-header { padding: 10px 14px; font-size: 0.82rem; }
+  .card-body { padding: 10px 14px; }
+
+  /* Gauge */
+  .gauge-value { font-size: 2.4rem; }
+  .gauge-card .chart-container { height: 200px; }
+
+  /* Pagination */
+  .pagination { gap: 4px; flex-wrap: wrap; }
+  .pagination button { font-size: 0.78rem; }
+
+  /* Toast */
+  .toast { max-width: 300px; bottom: 16px; right: 12px; font-size: 0.78rem; padding: 10px 16px; }
+
+  /* All buttons / clickable: min 44x44 */
+  .tab-btn { min-height: 44px; min-width: 44px; }
+  .pagination button { min-height: 44px; min-width: 44px; padding: 6px 12px; }
+}
+
+/* --- Phone portrait (≤480px) --- */
+@media (max-width: 480px) {
+  /* Layout */
+  .main-content { padding: 8px 8px 20px; }
+
+  /* KPI cards: 1 column */
+  .kpi-row { grid-template-columns: 1fr; gap: 8px; }
+  .kpi-card { padding: 10px 12px; }
+  .kpi-card .kpi-value { font-size: 1.15rem; }
+  .kpi-card .kpi-label { font-size: 0.68rem; }
+  .kpi-card .kpi-sub { display: none; }
+  .kpi-card .kpi-icon { font-size: 1.2rem; right: 10px; opacity: 0.08; }
+
+  /* Charts: even smaller */
+  .chart-container { height: 180px; min-height: 160px; min-width: 0; }
+  .gauge-card .chart-container { height: 170px; }
+
+  /* Tab nav: horizontal scroll, compact */
+  .tab-nav {
+    padding: 4px 6px 0;
+    gap: 1px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+  }
+  .tab-nav::-webkit-scrollbar { height: 0; }
+  .tab-btn {
+    padding: 6px 10px;
+    font-size: 0.72rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-height: 44px;
+    min-width: 44px;
+  }
+  /* Hide tab button text, show icon only on very small screens */
+  .tab-btn .tab-icon { font-size: 1rem; margin: 0; }
+
+  /* Header: compact logo, hide header-right */
+  .app-header { padding: 0 8px; height: 44px; }
+  .app-header .logo { font-size: 0.9rem; gap: 4px; }
+  .app-header .logo .icon { font-size: 1.1rem; }
+  .header-right { display: none; }
+
+  /* Tables: smaller font, horizontal scroll */
+  table { font-size: 0.72rem; }
+  thead th { padding: 6px 8px; font-size: 0.65rem; }
+  tbody td { padding: 6px 8px; font-size: 0.7rem; }
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Providers & Platforms: single column */
+  .provider-grid { grid-template-columns: 1fr; gap: 8px; }
+  .platform-status-list { grid-template-columns: 1fr; gap: 6px; }
+  .provider-card { padding: 12px 14px; }
+
+  /* Card */
+  .card-header { padding: 8px 12px; font-size: 0.78rem; }
+  .card-body { padding: 8px 12px; }
+
+  /* Gauge */
+  .gauge-value { font-size: 2rem; }
+
+  /* Pagination: compact */
+  .pagination { gap: 2px; flex-wrap: wrap; }
+  .pagination button {
+    font-size: 0.72rem;
+    padding: 6px 10px;
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .pagination .page-info { font-size: 0.7rem; }
+
+  /* Toast */
+  .toast { max-width: 260px; bottom: 12px; right: 8px; font-size: 0.75rem; padding: 8px 14px; }
+
+  /* Status badges */
+  .status-badge { font-size: 0.68rem; padding: 2px 8px; }
+  .platform-status-item { padding: 8px 12px; gap: 6px; }
+  .platform-status-item .platform-icon { font-size: 1.2rem; width: 28px; height: 28px; }
+
+  /* Config block */
+  .config-block { font-size: 0.68rem; padding: 10px; max-height: 300px; }
+
+  /* Session search */
+  #sessionSearch { width: 120px !important; font-size: 0.72rem !important; }
+}
+
+</style>
+</head>
+<body>
+
+<!-- ===== Header ===== -->
+<header class="app-header">
+  <a class="logo" href="#">
+    <span class="icon">⚡</span>
+    <span>服务器智能体控制台</span>
+  </a>
+  <div class="header-right">
+    <span id="header-status-dot" class="status-dot online"></span>
+    <span id="header-status-text">系统运行中</span>
+    <span style="margin-left:8px;opacity:0.5;">|</span>
+    <span id="header-uptime">--</span>
+    <span style="margin-left:8px;opacity:0.5;">|</span>
+    <button id="btnRefresh" title="手动刷新" style="background:none;border:1px solid var(--border-color);border-radius:6px;cursor:pointer;font-size:1rem;padding:2px 6px;color:var(--text-secondary);transition:all var(--transition);line-height:1;">🔄</button>
+    <span id="refreshTimer" style="font-size:0.75rem;color:var(--text-muted);min-width:90px;">--</span>
+  </div>
+</header>
+
+<!-- ===== Tab Navigation ===== -->
+<nav class="tab-nav" id="tabNav">
+  <button class="tab-btn active" data-tab="agents">
+    <span class="tab-icon">🧠</span> 智能体
+  </button>
+  <button class="tab-btn" data-tab="overview">
+    <span class="tab-icon">📊</span> 用量总览
+  </button>
+  <button class="tab-btn" data-tab="config">
+    <span class="tab-icon">⚙️</span> Hermes
+  </button>
+  <button class="tab-btn" data-tab="openclaw">
+    <span class="tab-icon">🦀</span> OpenClaw
+  </button>
+  <button class="tab-btn" data-tab="usage">
+    <span class="tab-icon">📈</span> 分析
+  </button>
+  <button class="tab-btn" data-tab="gateway">
+    <span class="tab-icon">🌐</span> 服务/任务
+  </button>
+  <button class="tab-btn" data-tab="sessions">
+    <span class="tab-icon">💬</span> 会话
+  </button>
+</nav>
+
+<!-- ===== Main Content ===== -->
+<main class="main-content">
+  <div class="time-range-bar" id="timeRangeBar">
+    <span class="time-range-label">全局时间范围</span>
+    <button class="time-range-btn" data-days="1">24h</button>
+    <button class="time-range-btn active" data-days="7">7天</button>
+    <button class="time-range-btn" data-days="30">30天</button>
+    <button class="time-range-btn" data-days="90">90天</button>
+  </div>
+
+    <!-- ========== TAB 0: 智能体总控 ========== -->
+  <div class="tab-panel active" id="panel-agents">
+    <section class="agent-hero-v2">
+      <div class="agent-hero-glow"></div>
+      <div class="agent-hero-content">
+        <div class="agent-eyebrow">SERVER AGENT OPERATIONS</div>
+        <h1>智能体控制中心</h1>
+        <p>把 Hermes、OpenClaw 与关键依赖作为一组生产服务管理：状态、模型、端口、配置、日志与生命周期操作都在同一屏完成。</p>
+        <div class="agent-hero-meta">
+          <span id="agentFleetStatus" class="agent-fleet-status unknown">状态同步中</span>
+          <span id="agentLastUpdated" class="agent-hero-time">等待刷新</span>
+        </div>
+      </div>
+      <div class="agent-hero-actions">
+        <button id="btnAgentsRefresh" class="btn-sm btn-sm-edit" onclick="loadAgentsConsole({manual:true})">🔄 刷新总控</button>
+        <button class="btn-sm" onclick="selectAgentLogs(selectedAgentId || 'hermes')">📋 当前日志</button>
+        <a class="btn-sm btn-sm-save" href="https://monitor.zmjjkkk.fun" target="_blank" style="text-decoration:none;">📟 系统监控</a>
+      </div>
+    </section>
+
+    <div id="agentActionNotice" class="agent-notice-v2" style="display:none;"></div>
+
+    <section class="agent-command-grid">
+      <div class="agent-command-card primary"><div class="agent-command-label">运行中服务</div><div class="agent-command-value"><span id="agentRunning">--</span><span class="agent-command-total">/ <span id="agentTotal">--</span></span></div><div class="agent-command-sub">Hermes + OpenClaw</div></div>
+      <div class="agent-command-card"><div class="agent-command-label">Provider 总数</div><div class="agent-command-value" id="agentProviders">--</div><div class="agent-command-sub">跨智能体模型接入</div></div>
+      <div class="agent-command-card"><div class="agent-command-label">服务端口</div><div class="agent-command-value small" id="agentPorts">--</div><div class="agent-command-sub">Dashboard / Monitor / OpenClaw</div></div>
+      <div class="agent-command-card"><div class="agent-command-label">选中服务</div><div class="agent-command-value small" id="agentSelectedKpi">--</div><div class="agent-command-sub">日志与操作目标</div></div>
+    </section>
+
+    <section class="agent-dependency-panel">
+      <div class="agent-panel-heading"><div><span class="agent-section-kicker">DEPENDENCIES</span><h2>依赖健康</h2></div><span class="agent-panel-hint">异常依赖会直接影响回复、记忆和本地兜底</span></div>
+      <div id="agentHealthStrip" class="agent-health-strip-v2"></div>
+    </section>
+
+    <section class="agent-workbench-v2">
+      <div class="agent-left-rail">
+        <div class="agent-panel-heading"><div><span class="agent-section-kicker">SERVICES</span><h2>智能体服务</h2></div><span class="agent-panel-hint">点击卡片或“日志”切换观察对象</span></div>
+        <div id="agentCards" class="agent-card-grid-v2"><div class="loading-overlay"><div class="spinner"></div></div></div>
+        <div class="agent-shortcut-dock">
+          <button class="agent-shortcut" onclick="switchTab('config')"><span>⚙️</span><strong>Hermes 配置</strong><small>Hermes Provider / 模型</small></button>
+          <button class="agent-shortcut" onclick="switchTab('openclaw')"><span>🦀</span><strong>OpenClaw 配置</strong><small>独立 Provider / QQBot / 模型</small></button>
+          <button class="agent-shortcut" onclick="switchTab('gateway')"><span>⏰</span><strong>定时任务</strong><small>Cron / 汇总 / 健康检查</small></button>
+          <button class="agent-shortcut" onclick="switchTab('sessions')"><span>💬</span><strong>会话记录</strong><small>历史用量和上下文</small></button>
+        </div>
+      </div>
+
+      <aside class="agent-side-panel-v2">
+        <div class="agent-observer-card">
+          <div class="agent-observer-head"><div><span class="agent-section-kicker">OBSERVE</span><h2 id="agentLogSelected">未选择</h2></div><span id="agentObserverState" class="status-badge">--</span></div>
+          <div class="agent-log-path-row"><span>日志路径</span><code id="agentLogPath">选择一个智能体查看日志</code></div>
+          <div class="agent-log-controls-v2"><button class="btn-sm btn-sm-edit" onclick="refreshSelectedAgentLogs(true)">刷新日志</button><button class="btn-sm" onclick="toggleAgentLogFollow()" id="btnAgentLogFollow">自动滚动：开</button><button class="btn-sm btn-sm-cancel" onclick="clearAgentLogs()">清空</button></div>
+          <pre id="agentLogs" class="agent-log-box-v2">选择一个智能体查看日志</pre>
+        </div>
+        <div class="agent-activity-card">
+          <div class="agent-panel-heading compact"><div><span class="agent-section-kicker">ACTIVITY</span><h2>操作时间线</h2></div></div>
+          <div id="agentActivityFeed" class="agent-activity-feed"><div class="agent-activity-item muted"><span></span><div>等待操作或刷新事件</div></div></div>
+        </div>
+      </aside>
+    </section>
+  </div>
+
+<!-- ========== TAB 1: 总览 ========== -->
+  <div class="tab-panel" id="panel-overview">
+
+    <!-- KPI Cards -->
+    <div class="kpi-row" id="kpiRow">
+      <div class="kpi-card accent-blue">
+        <div class="kpi-label">总会话数</div>
+        <div class="kpi-value skeleton" style="width:80px;height:32px;"></div>
+        <div class="kpi-sub">Sessions</div>
+        <div class="kpi-icon">💬</div>
+      </div>
+      <div class="kpi-card accent-green">
+        <div class="kpi-label">总消息数</div>
+        <div class="kpi-value skeleton" style="width:100px;height:32px;"></div>
+        <div class="kpi-sub">Messages</div>
+        <div class="kpi-icon">📨</div>
+      </div>
+      <div class="kpi-card accent-purple">
+        <div class="kpi-label">Token 总量</div>
+        <div class="kpi-value skeleton" style="width:90px;height:32px;"></div>
+        <div class="kpi-sub">Total Tokens</div>
+        <div class="kpi-icon">🪙</div>
+      </div>
+      <div class="kpi-card accent-orange">
+        <div class="kpi-label">预估费用</div>
+        <div class="kpi-value skeleton" style="width:70px;height:32px;"></div>
+        <div class="kpi-sub">Estimated Cost</div>
+        <div class="kpi-icon">💰</div>
+      </div>
+      <div class="kpi-card accent-cyan">
+        <div class="kpi-label">活跃天数</div>
+        <div class="kpi-value skeleton" style="width:60px;height:32px;"></div>
+        <div class="kpi-sub">Active Days</div>
+        <div class="kpi-icon">📅</div>
+      </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">📈 Token 使用趋势（7天）</div>
+        <div class="card-body">
+          <div class="chart-container" id="chartTokenTrend">
+            <div class="loading-overlay"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">🤖 按模型用量分布</div>
+        <div class="card-body">
+          <div class="chart-container" id="chartModelPie">
+            <div class="loading-overlay"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card grid-full" style="margin-bottom:20px;">
+      <div class="card-header">💰 成本趋势</div>
+      <div class="card-body">
+        <div class="chart-container" id="chartCostTrend">
+          <div class="loading-overlay"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Platform Bar + Top Sessions -->
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">📱 按平台用量</div>
+        <div class="card-body">
+          <div class="chart-container" id="chartPlatformBar">
+            <div class="loading-overlay"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">🏆 Top 会话</div>
+        <div class="card-body" style="padding:0;">
+          <div class="table-wrap">
+            <table id="tableTopSessions">
+              <thead>
+                <tr><th>会话</th><th>来源</th><th>模型</th><th>消息</th><th>Token</th></tr>
+              </thead>
+              <tbody>
+                <tr><td colspan="5"><div class="loading-overlay"><div class="spinner"></div></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== TAB 2: 配置 ========== -->
+  <div class="tab-panel" id="panel-config">
+    <div class="config-hero">
+      <div>
+        <div class="config-hero-title">⚙️ Hermes 配置中心</div>
+        <div class="config-hero-subtitle">只管理 Hermes 自己的 Provider、当前模型、平台启用状态与 config.yaml；OpenClaw Provider 请到“OpenClaw 配置”单独维护。</div>
+      </div>
+      <button class="btn-sm btn-sm-save" onclick="showAddProvider()">＋ 新增 Provider</button>
+    </div>
+    <div class="config-summary-grid" id="hermesConfigSummary">
+      <div class="config-summary-item"><div class="config-summary-label">当前 Provider</div><div class="config-summary-value">加载中...</div></div>
+      <div class="config-summary-item"><div class="config-summary-label">当前模型</div><div class="config-summary-value">加载中...</div></div>
+      <div class="config-summary-item"><div class="config-summary-label">Base URL</div><div class="config-summary-value">加载中...</div></div>
+    </div>
+
+    <!-- Provider 管理 -->
+    <div class="card grid-full" style="margin-bottom:20px;">
+      <div class="card-header">
+        <span class="config-card-title">🔌 Hermes Provider <span class="config-card-subtitle">仅写入 Hermes config.yaml，不同步 OpenClaw</span></span>
+        <button class="btn-sm btn-sm-save" onclick="showAddProvider()" style="margin-left:auto;">＋ 新增</button>
+      </div>
+      <div class="card-body">
+        <div class="config-note" style="margin-bottom:12px;padding:10px 12px;border:1px solid rgba(245,158,11,.28);background:rgba(245,158,11,.08);border-radius:10px;color:var(--text-secondary);font-size:.82rem;line-height:1.5;">Hermes 与 OpenClaw 的 Provider 已拆分：这里的新增/编辑/删除只影响 Hermes；如需改 OpenClaw 的中转、模型或默认 Agent 模型，请切换到 🦀 OpenClaw 配置。</div>
+        <div id="providerGrid">
+          <div class="loading-overlay"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 新增/编辑 Provider 弹窗 -->
+    <div id="providerModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center;">
+      <div style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-lg);padding:24px;width:100%;max-width:460px;box-shadow:var(--shadow-lg);">
+        <div style="font-weight:700;font-size:1.1rem;margin-bottom:18px;" id="modalTitle">新增 Provider</div>
+        <input type="hidden" id="modalEditName">
+        <div class="field-row" style="margin-bottom:12px;">
+          <span class="field-label">Provider</span>
+          <select id="modalName" class="provider-select" onchange="onProviderSelect(this.value)">
+            <option value="">— 选择 Provider —</option>
+            <option value="openai">OpenAI</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="anthropic">Anthropic</option>
+            <option value="groq">Groq</option>
+            <option value="google">Google AI</option>
+            <option value="mistral">Mistral</option>
+            <option value="together">Together AI</option>
+            <option value="openrouter">OpenRouter</option>
+            <option value="xai">xAI (Grok)</option>
+            <option value="custom">🛠 自定义...</option>
+          </select>
+        </div>
+        <div class="field-row provider-custom-input" id="customNameRow" style="margin-bottom:12px;">
+          <span class="field-label">名称</span>
+          <input id="modalCustomName" placeholder="my-provider" style="flex:1;">
+        </div>
+        <div class="field-row" style="margin-bottom:12px;">
+          <span class="field-label">API Key</span>
+          <input id="modalKey" type="password" placeholder="sk-..." style="flex:1;">
+          <button class="btn-sm btn-sm-edit" onclick="toggleKeyVisibility()" style="padding:5px 8px;min-width:32px;" id="keyToggleBtn" title="显示/隐藏">👁</button>
+        </div>
+        <div class="field-row" style="margin-bottom:18px;">
+          <span class="field-label">Base URL</span>
+          <input id="modalUrl" placeholder="自动填充..." style="flex:1;">
+        </div>
+        <div class="card-actions" style="justify-content:flex-end;">
+          <button class="btn-sm btn-sm-cancel" onclick="hideProviderModal()">取消</button>
+          <button class="btn-sm btn-sm-save" id="modalSaveBtn" onclick="saveProvider()">💾 保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- OpenClaw Provider 弹窗（与 Hermes Provider 一致的配置方式） -->
+    <div id="ocProviderModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center;">
+      <div style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-lg);padding:24px;width:100%;max-width:540px;box-shadow:var(--shadow-lg);">
+        <div style="font-weight:700;font-size:1.1rem;margin-bottom:18px;" id="ocModalTitle">新增 OpenClaw Provider</div>
+        <input type="hidden" id="ocModalEditName">
+        <div class="field-row" style="margin-bottom:12px;">
+          <span class="field-label">Provider</span>
+          <select id="ocModalName" class="provider-select" onchange="onOcProviderSelect(this.value)">
+            <option value="">— 选择 Provider —</option>
+            <option value="myproxy">MyProxy / 中转站</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="openai">OpenAI</option>
+            <option value="openrouter">OpenRouter</option>
+            <option value="custom">🛠 自定义...</option>
+          </select>
+        </div>
+        <div class="field-row provider-custom-input" id="ocCustomNameRow" style="margin-bottom:12px;">
+          <span class="field-label">名称</span>
+          <input id="ocModalCustomName" placeholder="my-provider" style="flex:1;">
+        </div>
+        <div class="field-row" style="margin-bottom:12px;">
+          <span class="field-label">API Key</span>
+          <input id="ocModalKey" type="password" placeholder="sk-...（编辑时留空则保留原密钥）" style="flex:1;">
+          <button class="btn-sm btn-sm-edit" onclick="toggleOcKeyVisibility()" style="padding:5px 8px;min-width:32px;" id="ocKeyToggleBtn" title="显示/隐藏">👁</button>
+        </div>
+        <div class="field-row" style="margin-bottom:12px;">
+          <span class="field-label">Base URL</span>
+          <input id="ocModalUrl" placeholder="https://api.example.com/v1" style="flex:1;">
+        </div>
+        <div class="field-row" style="margin-bottom:12px;">
+          <span class="field-label">API 类型</span>
+          <select id="ocModalApi" class="provider-select" style="flex:1;">
+            <option value="openai-completions">openai-completions</option>
+            <option value="openai-responses">openai-responses</option>
+          </select>
+        </div>
+        <div class="field-row" style="margin-bottom:18px;align-items:flex-start;">
+          <span class="field-label" style="padding-top:7px;">模型</span>
+          <textarea id="ocModalModels" placeholder="每行一个模型 ID，例如：
+gpt-5.5
+deepseek-v4-pro" style="flex:1;min-height:92px;background:var(--bg-secondary);border:1px solid var(--border-color);color:var(--text-primary);padding:8px 12px;border-radius:6px;font-family:var(--font-mono);resize:vertical;"></textarea>
+        </div>
+        <div style="font-size:0.72rem;color:var(--text-muted);margin:-8px 0 14px 86px;">OpenClaw 模型格式保存为 <code>{ id, name }</code>；默认模型在下方“Agent 默认模型”里选择/填写。</div>
+        <div class="card-actions" style="justify-content:flex-end;">
+          <button class="btn-sm btn-sm-cancel" onclick="hideOcProviderModal()">取消</button>
+          <button class="btn-sm btn-sm-save" id="ocModalSaveBtn" onclick="saveOcProvider()">💾 保存</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card grid-full" style="margin-bottom:20px;">
+      <div class="card-header"><span class="config-card-title">🌍 已配置平台 <span class="config-card-subtitle">Hermes 连接入口</span></span></div>
+      <div class="card-body">
+        <div class="platform-status-list" id="configPlatformList">
+          <div class="loading-overlay"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card grid-full">
+      <div class="card-header"><span class="config-card-title">📄 config.yaml 关键配置 <span class="config-card-subtitle">已脱敏展示</span></span></div>
+      <div class="card-body">
+        <div class="config-block skeleton" id="configYaml" style="height:300px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== TAB 3: 用量 ========== -->
+  <div class="tab-panel" id="panel-usage">
+    <!-- Cache Hit Rate Gauge -->
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">💾 缓存命中率</div>
+        <div class="card-body gauge-card">
+          <div class="chart-container" id="chartCacheGauge">
+            <div class="loading-overlay"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">📉 缓存命中率趋势（7天）</div>
+        <div class="card-body">
+          <div class="chart-container" id="chartCacheTrend">
+            <div class="loading-overlay"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Model Token Detail Table -->
+    <div class="card grid-full">
+      <div class="card-header">🤖 按模型 Token 消耗明细</div>
+      <div class="card-body" style="padding:0;">
+        <div class="table-wrap">
+          <table id="tableModelUsage">
+            <thead>
+              <tr><th>模型</th><th class="text-right">Input Tokens</th><th class="text-right">Output Tokens</th><th class="text-right">Cache Tokens</th><th class="text-right">总成本</th></tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="5"><div class="loading-overlay"><div class="spinner"></div></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Platform Token Detail Table -->
+    <div class="card grid-full" style="margin-top:16px;">
+      <div class="card-header">📱 按平台 Token 消耗明细</div>
+      <div class="card-body" style="padding:0;">
+        <div class="table-wrap">
+          <table id="tablePlatformUsage">
+            <thead>
+              <tr><th>平台</th><th class="text-right">Input Tokens</th><th class="text-right">Output Tokens</th><th class="text-right">Cache Tokens</th><th class="text-right">总成本</th></tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="5"><div class="loading-overlay"><div class="spinner"></div></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== TAB 4: 网关 ========== -->
+  <div class="tab-panel" id="panel-gateway">
+    <div class="card grid-full" style="margin-bottom:20px;">
+      <div class="card-header">🌐 平台连接状态</div>
+      <div class="card-body">
+        <div class="platform-status-list" id="gatewayPlatformList">
+          <div class="loading-overlay"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">⚡ Gateway 运行状态</div>
+        <div class="card-body">
+          <div style="display:flex;flex-direction:column;gap:14px;" id="gatewayStatus">
+            <div>
+              <div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:4px;">运行时间 (Uptime)</div>
+              <div class="skeleton" style="width:120px;height:24px;display:inline-block;"></div>
+            </div>
+            <div>
+              <div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:4px;">活跃会话数</div>
+              <div class="skeleton" style="width:60px;height:24px;display:inline-block;"></div>
+            </div>
+            <div>
+              <div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:4px;">状态</div>
+              <span class="status-badge online"><span class="status-dot-sm green"></span> 运行中</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">⏰ Cron 任务</div>
+        <div class="card-body" id="cronInfo">
+          <div class="loading-overlay"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== TAB 5: 会话 ========== -->
+  <div class="tab-panel" id="panel-sessions">
+    <div class="card grid-full">
+      <div class="card-header">
+        <span>💬 会话列表</span>
+        <input id="sessionSearch" type="text" placeholder="🔍 搜索会话..." style="margin:0 12px;background:var(--bg-secondary);border:1px solid var(--border-color);color:var(--text-primary);padding:4px 12px;border-radius:6px;font-size:0.8rem;width:200px;font-family:var(--font-sans);" oninput="searchSessions()">
+        <span style="font-size:0.78rem;color:var(--text-muted);" id="sessionCount">--</span>
+      </div>
+      <div class="card-body" style="padding:0;">
+        <div class="table-wrap">
+          <table id="tableSessions">
+            <thead>
+              <tr>
+                <th>标题</th>
+                <th>来源</th>
+                <th>模型</th>
+                <th>时间</th>
+                <th class="text-right">消息数</th>
+                <th class="text-right">Token</th>
+                <th class="text-right">成本</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="7"><div class="loading-overlay"><div class="spinner"></div></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination" id="sessionPagination"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== TAB: OpenClaw ========== -->
+  <div class="tab-panel" id="panel-openclaw">
+    <div class="config-hero">
+      <div>
+        <div class="config-hero-title">🦀 OpenClaw 配置中心</div>
+        <div class="config-hero-subtitle">只管理 OpenClaw 自己的 Gateway、Provider、QQ Bot 通道与默认 Agent 模型；不会同步或覆盖 Hermes Provider。</div>
+      </div>
+      <button class="btn-sm btn-sm-save" onclick="showOcAddProvider()">＋ 新增 Provider</button>
+    </div>
+    <div class="config-summary-grid" id="openclawConfigSummary">
+      <div class="config-summary-item"><div class="config-summary-label">当前 Provider</div><div class="config-summary-value">加载中...</div></div>
+      <div class="config-summary-item"><div class="config-summary-label">当前模型</div><div class="config-summary-value">加载中...</div></div>
+      <div class="config-summary-item"><div class="config-summary-label">Gateway</div><div class="config-summary-value">加载中...</div></div>
+    </div>
+
+    <!-- 状态卡片 -->
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-header"><span class="config-card-title">📡 运行状态 <span class="config-card-subtitle">Gateway 进程与端口</span></span></div>
+      <div class="card-body" id="ocStatus">
+        <div class="loading-overlay"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <!-- Gateway 配置 -->
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-header"><span class="config-card-title">🔌 Gateway <span class="config-card-subtitle">与 Hermes 表单一致的配置输入</span></span></div>
+      <div class="card-body">
+        <div class="form-grid-2">
+          <div class="form-field">
+            <label>端口</label>
+            <input id="ocPort" type="number" value="18789">
+          </div>
+          <div class="form-field">
+            <label>模式</label>
+            <input id="ocMode" type="text" value="local">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Provider 配置 -->
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-header">
+        <span class="config-card-title">🧠 OpenClaw Model Provider <span class="config-card-subtitle">仅写入 OpenClaw 配置，不同步 Hermes</span></span>
+        <button class="btn-sm btn-sm-save" onclick="showOcAddProvider()" style="font-size:0.75rem;">＋ 新增</button>
+      </div>
+      <div class="card-body">
+        <div class="config-note" style="margin-bottom:12px;padding:10px 12px;border:1px solid rgba(88,166,255,.28);background:rgba(88,166,255,.08);border-radius:10px;color:var(--text-secondary);font-size:.82rem;line-height:1.5;">OpenClaw Provider 与 Hermes Provider 独立保存。这里用于 OpenClaw Agent 的模型供应商和中转；Hermes Dashboard / Hermes Gateway 的 Provider 请在 ⚙️ Hermes 配置维护。</div>
+        <div id="ocProviders">
+          <div class="loading-overlay"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- QQ Bot Channel -->
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-header">
+        <span>🐧 QQ Bot 通道</span>
+      </div>
+      <div class="card-body" id="ocQqbot" style="padding:16px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+          <div>
+            <label style="display:block;font-size:0.78rem;color:var(--text-muted);margin-bottom:4px;">App ID</label>
+            <input id="ocQqAppId" type="text" placeholder="QQ 开放平台 App ID" style="width:100%;background:var(--bg-secondary);border:1px solid var(--border-color);color:var(--text-primary);padding:8px 12px;border-radius:6px;font-family:var(--font-mono);">
+          </div>
+          <div>
+            <label style="display:block;font-size:0.78rem;color:var(--text-muted);margin-bottom:4px;">Client Secret</label>
+            <input id="ocQqSecret" type="password" placeholder="填写新值才会更新" style="width:100%;background:var(--bg-secondary);border:1px solid var(--border-color);color:var(--text-primary);padding:8px 12px;border-radius:6px;font-family:var(--font-mono);">
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <label style="font-size:0.85rem;display:flex;align-items:center;gap:6px;cursor:pointer;">
+            <input type="checkbox" id="ocQqEnabled" checked style="accent-color:var(--accent-green);"> 启用
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Agent 模型选择 -->
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-header"><span>🎯 Agent 默认模型</span></div>
+      <div class="card-body">
+        <div id="ocCurrentModelPreview" class="model-summary-card" style="margin-top:0;margin-bottom:10px;">当前模型加载中...</div>
+        <div style="display:flex;gap:12px;align-items:center;">
+          <input id="ocAgentModel" type="text" placeholder="例如: myproxy/gpt-5.5" style="flex:1;background:var(--bg-secondary);border:1px solid var(--border-color);color:var(--text-primary);padding:8px 12px;border-radius:6px;font-family:var(--font-mono);">
+        </div>
+        <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">格式: <code>provider_id/model_name</code>；也可以在上方 Provider 卡片中点选模型。</div>
+      </div>
+    </div>
+
+    <!-- 操作按钮 -->
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+      <button id="ocBtnSave" class="btn-sm btn-sm-save" onclick="ocSaveConfig()" style="font-size:0.9rem;padding:10px 24px;">💾 保存配置</button>
+      <button id="ocBtnRestart" class="btn-sm btn-sm-save" onclick="ocRestartGateway()" style="font-size:0.9rem;padding:10px 24px;">🔄 重启 Gateway</button>
+      <button id="ocBtnStop" class="btn-sm btn-sm-cancel" onclick="ocStopGateway()" style="font-size:0.9rem;padding:10px 24px;">⏹ 停止</button>
+      <span id="ocActionMsg" style="font-size:0.82rem;color:var(--text-secondary);align-self:center;"></span>
+    </div>
+
+    <!-- 日志 -->
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-header">
+        <span>📋 日志</span>
+        <button class="btn-sm btn-sm-edit" onclick="ocRefreshLogs()" style="font-size:0.7rem;">🔄</button>
+      </div>
+      <div class="card-body" style="padding:0;">
+        <pre id="ocLogs" style="margin:0;padding:12px;font-size:0.7rem;max-height:300px;overflow-y:auto;background:var(--bg-primary);color:var(--text-secondary);font-family:var(--font-mono);white-space:pre-wrap;word-break:break-all;border-radius:0 0 var(--radius-md) var(--radius-md);">暂无日志</pre>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+/* ============================================================
+   Hermes Dashboard — Main Application
+   ============================================================ */
+
+const API_BASE = '/api';
+let currentSessionPage = 1;
+const SESSION_PAGE_SIZE = 10;
+let currentDays = 7;
+
+// ===== Refresh State =====
+let currentTab = 'agents';
+const refreshTimers = {};
+let lastRefreshTime = null;
+let refreshDebounceTimer = null;
+let refreshIndicatorTimer = null;
+
+const REFRESH_INTERVALS = {
+  agents: 10000,
+  overview: 15000,
+  config: 60000,
+  openclaw: 15000,
+  usage: 30000,
+  gateway: 10000,
+  sessions: 60000
+};
+
+// ===== Utility Functions =====
+function $(sel) { return document.querySelector(sel); }
+function $$(sel) { return document.querySelectorAll(sel); }
+
+function formatNumber(n) {
+  if (n == null || isNaN(n)) return '--';
+  if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return n.toLocaleString();
+}
+
+function formatCost(n) {
+  if (n == null || isNaN(n)) return '--';
+  return '$' + n.toFixed(4);
+}
+
+function formatUptime(seconds) {
+  if (!seconds) return '--';
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const parts = [];
+  if (d > 0) parts.push(d + '天');
+  if (h > 0) parts.push(h + '小时');
+  if (m > 0) parts.push(m + '分钟');
+  return parts.join(' ') || '<1分钟';
+}
+
+function formatDate(ts) {
+  if (!ts) return '--';
+  const d = new Date(ts * 1000 || ts);
+  const now = new Date();
+  const diff = now - d;
+  if (diff < 60000) return '刚刚';
+  if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
+  if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
+  return d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+async function fetchAPI(path) {
+  const resp = await fetch(API_BASE + path);
+  if (!resp.ok) throw new Error(`API ${path} returned ${resp.status}`);
+  return resp.json();
+}
+
+function showToast(msg, type) {
+  type = type || 'error';
+  const existing = $('.toast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+function setButtonLoading(btn, loading, labelWhenLoading) {
+  if (!btn) return;
+  if (loading) {
+    btn.dataset.originalText = btn.textContent;
+    btn.textContent = labelWhenLoading || '处理中';
+    btn.classList.add('btn-loading');
+    btn.disabled = true;
+  } else {
+    btn.textContent = btn.dataset.originalText || btn.textContent;
+    btn.classList.remove('btn-loading');
+    btn.disabled = false;
+  }
+}
+
+function showInlineNotice(msg, type) {
+  const el = $('#agentActionNotice');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'inline-alert ' + (type || '');
+  el.style.display = 'block';
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => { el.style.display = 'none'; }, 6000);
+}
+
+function confirmDanger(title, detail) {
+  return confirm(`${title}\n\n${detail || '这是服务级操作，可能导致机器人短暂离线。'}`);
+}
+
+// ===== ECharts Helpers =====
+function initChart(domId) {
+  const dom = document.getElementById(domId);
+  if (!dom) return null;
+  // Clear loading placeholder
+  dom.innerHTML = '';
+  // Ensure DOM is laid out with visible dimensions before init
+  const chart = echarts.init(dom, 'dark');
+  // Force resize after next paint to get correct dimensions
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (chart && !chart.isDisposed()) chart.resize();
+    });
+  });
+  return chart;
+}
+
+function darkChartOpts() {
+  return {
+    backgroundColor: 'transparent',
+    textStyle: { color: '#8b949e' },
+    grid: { top: 20, right: 20, bottom: 30, left: 50 },
+    tooltip: {
+      backgroundColor: 'rgba(22,27,34,0.95)',
+      borderColor: '#30363d',
+      textStyle: { color: '#e6edf3', fontSize: 12 }
+    },
+    legend: {
+      textStyle: { color: '#8b949e', fontSize: 12 },
+      top: 0
+    }
+  };
+}
+
+// ===== Tab Navigation =====
+const VALID_TABS = new Set(Object.keys(REFRESH_INTERVALS));
+
+function getInitialTab() {
+  const hashTab = decodeURIComponent((window.location.hash || '').replace(/^#\/?/, '')).trim();
+  const storedTab = localStorage.getItem('hermes-dashboard-active-tab') || '';
+  if (VALID_TABS.has(hashTab)) return hashTab;
+  if (VALID_TABS.has(storedTab)) return storedTab;
+  return 'agents';
+}
+
+function persistActiveTab(tabName, replace = false) {
+  if (!VALID_TABS.has(tabName)) return;
+  localStorage.setItem('hermes-dashboard-active-tab', tabName);
+  const nextHash = '#' + tabName;
+  if (window.location.hash !== nextHash) {
+    if (replace) history.replaceState(null, '', nextHash);
+    else history.pushState(null, '', nextHash);
+  }
+}
+
+function switchTab(tabName, options = {}) {
+  if (!VALID_TABS.has(tabName)) tabName = 'agents';
+  $$('.tab-btn').forEach(b => b.classList.remove('active'));
+  $$('.tab-panel').forEach(p => p.classList.remove('active'));
+
+  const btn = document.querySelector(`[data-tab="${tabName}"]`);
+  const panel = document.getElementById('panel-' + tabName);
+  if (btn) btn.classList.add('active');
+  if (panel) panel.classList.add('active');
+
+  currentTab = tabName;
+  persistActiveTab(tabName, options.replaceHistory === true);
+
+  // Debounce: delay 500ms before triggering refresh on tab switch
+  if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
+  refreshDebounceTimer = setTimeout(() => {
+    loadTabContent(tabName);
+    startAutoRefresh(tabName);
+  }, 500);
+}
+
+$('#tabNav').addEventListener('click', (e) => {
+  const btn = e.target.closest('.tab-btn');
+  if (!btn) return;
+  switchTab(btn.dataset.tab);
+});
+
+// ===== Tab Content Loaders =====
+const tabLoaders = {
+  agents: loadAgentsConsole,
+  overview: loadOverview,
+  config: loadConfig,
+  usage: loadUsage,
+  gateway: loadGateway,
+  sessions: loadSessions,
+  openclaw: loadOpenClaw
+};
+
+const tabFirstLoaded = {};
+
+function loadTabContent(tabName) {
+  if (!tabFirstLoaded[tabName]) {
+    tabFirstLoaded[tabName] = true;
+  }
+  if (tabLoaders[tabName]) {
+    tabLoaders[tabName]();
+    lastRefreshTime = Date.now();
+    updateRefreshIndicator();
+  }
+}
+
+// ===== Auto Refresh =====
+function startAutoRefresh(tabName) {
+  stopAutoRefresh();
+  const interval = REFRESH_INTERVALS[tabName] || 30000;
+  refreshTimers[tabName] = setInterval(() => {
+    if (!document.hidden && currentTab === tabName) {
+      refreshCurrentTab();
+    }
+  }, interval);
+}
+
+function stopAutoRefresh() {
+  Object.values(refreshTimers).forEach(t => clearInterval(t));
+  for (const key in refreshTimers) delete refreshTimers[key];
+}
+
+function refreshCurrentTab() {
+  if (tabLoaders[currentTab]) {
+    tabLoaders[currentTab]();
+    lastRefreshTime = Date.now();
+    updateRefreshIndicator();
+  }
+}
+
+// ===== Refresh Indicator =====
+function updateRefreshIndicator() {
+  const el = document.getElementById('refreshTimer');
+  if (!el) return;
+  if (!lastRefreshTime) {
+    el.textContent = '--';
+    el.style.color = 'var(--text-muted)';
+    return;
+  }
+  const seconds = Math.floor((Date.now() - lastRefreshTime) / 1000);
+  el.textContent = '刷新: ' + seconds + '秒前';
+  el.style.color = seconds > 60 ? 'var(--accent-yellow)' : 'var(--text-muted)';
+}
+
+function startRefreshIndicator() {
+  if (refreshIndicatorTimer) clearInterval(refreshIndicatorTimer);
+  refreshIndicatorTimer = setInterval(updateRefreshIndicator, 1000);
+}
+
+// ===== Visibility API =====
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stopAutoRefresh();
+  } else {
+    startAutoRefresh(currentTab);
+    // Refresh immediately when coming back to foreground if interval has passed
+    if (lastRefreshTime && (Date.now() - lastRefreshTime) > (REFRESH_INTERVALS[currentTab] || 30000)) {
+      refreshCurrentTab();
+    }
+  }
+});
+
+// ===== RESPONSIVE RESIZE =====
+window.addEventListener('resize', () => {
+  Object.values(echarts.getInstanceByDom).forEach(inst => {
+    if (inst && inst.resize) inst.resize();
+  });
+  // Actually iterate all chart instances
+  $$('.chart-container').forEach(dom => {
+    const inst = echarts.getInstanceByDom(dom);
+    if (inst) inst.resize();
+  });
+});
+
+// ===== AGENTS CONSOLE TAB =====
+let selectedAgentId = localStorage.getItem('hermes-dashboard-selected-agent') || 'hermes';
+let agentsCache = [];
+let agentLogFollow = localStorage.getItem('hermes-dashboard-agent-log-follow') !== '0';
+let agentActivity = [];
+
+function pushAgentActivity(text, type='muted') {
+  const stamp = new Date().toLocaleTimeString('zh-CN');
+  agentActivity.unshift({ text, type, stamp });
+  agentActivity = agentActivity.slice(0, 12);
+  renderAgentActivity();
+}
+
+function renderAgentActivity() {
+  const feed = document.getElementById('agentActivityFeed');
+  if (!feed) return;
+  feed.innerHTML = agentActivity.length
+    ? agentActivity.map(item => `<div class="agent-activity-item ${item.type}"><span></span><div><strong>${escapeHtml(item.stamp)}</strong> · ${escapeHtml(item.text)}</div></div>`).join('')
+    : '<div class="agent-activity-item muted"><span></span><div>等待操作或刷新事件</div></div>';
+}
+
+async function loadAgentsConsole(options = {}) {
+  const btn = options.manual ? document.getElementById('btnAgentsRefresh') : null;
+  try {
+    setButtonLoading(btn, true, '刷新中');
+    const data = await fetchAPI('/agents');
+    agentsCache = data.agents || [];
+    renderAgentsConsole(data);
+    if (selectedAgentId) refreshSelectedAgentLogs(false);
+    updateHeaderStatus({ running: agentsCache.some(a => a.running), gateway_running: agentsCache.some(a => a.id === 'hermes' && a.running), uptime: null });
+    const updated = document.getElementById('agentLastUpdated');
+    if (updated) updated.textContent = '上次刷新：' + new Date().toLocaleTimeString('zh-CN');
+    if (options.manual) pushAgentActivity('手动刷新智能体总控台', 'success');
+  } catch (err) {
+    console.error('Agents load error:', err);
+    const container = $('#agentCards');
+    if (container) container.innerHTML = '<div class="agent-notice-v2 error">加载智能体失败：' + escapeHtml(err.message) + '</div>';
+    showToast('加载智能体总控失败: ' + err.message, 'error');
+    pushAgentActivity('加载失败：' + err.message, 'error');
+  } finally {
+    setButtonLoading(btn, false);
+  }
+}
+
+function renderAgentsConsole(data) {
+  const agents = data.agents || [];
+  const running = agents.filter(a => a.running).length;
+  const providers = agents.reduce((sum, a) => sum + (a.providers_count || 0), 0);
+  const server = data.server || {};
+  const totalEl = $('#agentTotal'); if (totalEl) totalEl.textContent = agents.length;
+  const runningEl = $('#agentRunning'); if (runningEl) runningEl.textContent = running;
+  const providersEl = $('#agentProviders'); if (providersEl) providersEl.textContent = providers;
+  const portsEl = $('#agentPorts'); if (portsEl) portsEl.textContent = `${server.dashboard_port || 9100}/${server.monitor_port || 9000}/${server.openclaw_port || 18789}`;
+  const fleet = document.getElementById('agentFleetStatus');
+  if (fleet) {
+    fleet.className = `agent-fleet-status ${running === agents.length && agents.length ? 'ok' : 'bad'}`;
+    fleet.textContent = agents.length ? `${running}/${agents.length} 服务在线` : '未发现服务';
+  }
+  renderAgentHealthStrip(data);
+  const container = $('#agentCards');
+  if (agents.length && !agents.some(a => a.id === selectedAgentId)) selectedAgentId = agents[0].id;
+  if (container) container.innerHTML = agents.length ? agents.map(agent => renderAgentCard(agent)).join('') : '<div class="empty-state"><div class="empty-icon">🧠</div><div>未发现智能体服务</div></div>';
+  updateSelectedAgentVisuals();
+}
+
+function renderAgentHealthStrip(data) {
+  const strip = $('#agentHealthStrip');
+  if (!strip) return;
+  const server = data.server || {};
+  const sm = server.shared_memory || {};
+  const ollama = server.ollama || {};
+  const services = server.services || {};
+  const items = [
+    { icon:'🧠', title:'Shared Memory', ok: !!sm.ok, sub: sm.ok ? `${sm.memories || 0} memories · ${sm.embeddings || 0} vectors · ${sm.local_tasks || 0} tasks` : (sm.error || 'unreachable') },
+    { icon:'🧩', title:'Ollama 本地模型', ok: !!ollama.reachable && !!ollama.has_qwen && !!ollama.has_embed, sub: ollama.reachable ? `${ollama.has_qwen ? 'Qwen ✓' : 'Qwen ×'} · ${ollama.has_embed ? 'Embedding ✓' : 'Embedding ×'}` : (ollama.error || 'unreachable') },
+    { icon:'📟', title:'System Monitor', ok: !!services.monitor?.running, sub: services.monitor?.running ? 'port 9000 online' : 'port 9000 offline' },
+    { icon:'🦀', title:'OpenClaw Gateway', ok: !!services.openclaw?.running, sub: services.openclaw?.running ? `port ${server.openclaw_port || 18789} online` : 'gateway offline' }
+  ];
+  strip.innerHTML = items.map(it => `<div class="agent-health-pill-v2 ${it.ok ? 'ok' : 'bad'}"><div class="icon">${it.icon}</div><div style="min-width:0;"><strong>${escapeHtml(it.title)}</strong><small>${escapeHtml(it.sub)}</small></div></div>`).join('');
+}
+
+function splitModelRef(modelRef, fallbackProvider) {
+  const raw = modelRef || '';
+  if (raw.includes('/')) {
+    const idx = raw.indexOf('/');
+    return { provider: raw.slice(0, idx), model: raw.slice(idx + 1), raw };
+  }
+  return { provider: fallbackProvider || '', model: raw || '--', raw };
+}
+
+function providerIcon(provider) {
+  const icons = { openai: '🧠', myproxy: '🚇', deepseek: '🔍', openrouter: '🔀', anthropic: '🎭', google: '🌐', xai: '🚀', 'ollama-qwen': '🧩' };
+  return icons[(provider || '').toLowerCase()] || '🔌';
+}
+
+function renderModelDisplay(modelRef, fallbackProvider, options = {}) {
+  const parts = splitModelRef(modelRef, fallbackProvider);
+  const provider = parts.provider || fallbackProvider || 'unknown';
+  const model = parts.model || '--';
+  const active = options.active ? ' active' : '';
+  const title = escapeHtml(parts.raw || (provider + '/' + model));
+  return `<div class="model-display" title="${title}"><span class="model-provider-pill">${providerIcon(provider)} ${escapeHtml(provider)}</span><span class="model-name-chip${active}">${escapeHtml(model)}</span>${options.count != null ? `<span class="model-count-badge">${options.count} 个模型</span>` : ''}</div>`;
+}
+
+function modelPickerId(prefix, name) {
+  return `${prefix}-${String(name || '').replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+}
+function renderModelPicker({ prefix, providerName, models = [], selected = [], type = 'checkbox', radioName = '', onChange = '', saveAction = '', emptyText = '暂无模型', limit = 5 }) {
+  const cleanModels = Array.from(new Set((models || []).map(m => String(m || '').trim()).filter(Boolean)));
+  const selectedSet = new Set((Array.isArray(selected) ? selected : [selected]).filter(Boolean));
+  const pickerId = modelPickerId(prefix, providerName);
+  const safeProvider = escapeHtml(providerName).replace(/'/g,"\'");
+  const count = cleanModels.length;
+  if (!count) return `<div class="model-picker"><div class="model-empty" style="display:block;">${escapeHtml(emptyText)}</div></div>`;
+  const items = cleanModels.map((model, idx) => {
+    const isSelected = selectedSet.has(model) || selectedSet.has(`${providerName}/${model}`);
+    const safeModel = escapeHtml(model).replace(/'/g,"\'");
+    const inputAttrs = type === 'radio'
+      ? `type="radio" name="${escapeHtml(radioName || pickerId)}" ${isSelected ? 'checked' : ''} ${onChange ? `onchange="${onChange}('${safeProvider}','${safeModel}')"` : ''}`
+      : `type="checkbox" class="model-cb" value="${escapeHtml(model)}" ${isSelected ? 'checked' : ''} onchange="syncModelOptionState(this)"`;
+    return `<label class="model-option ${isSelected ? 'active' : 'dimmed'} ${idx >= limit ? 'extra-model' : ''}" data-name="${escapeHtml(model.toLowerCase())}" title="${escapeHtml(model)}"><input ${inputAttrs}><span class="model-option-name">${escapeHtml(model)}</span>${isSelected ? '<span class="model-option-mark">✓</span>' : ''}</label>`;
+  }).join('');
+  const controls = type === 'checkbox'
+    ? `<button class="btn-sm" onclick="event.preventDefault();checkAllModels('${safeProvider}')" style="font-size:0.68rem;padding:3px 8px;">全选</button><button class="btn-sm btn-sm-cancel" onclick="event.preventDefault();uncheckAllModels('${safeProvider}')" style="font-size:0.68rem;padding:3px 8px;">取消</button>`
+    : '';
+  const saveBtn = saveAction ? `<button class="btn-sm btn-sm-save" onclick="${saveAction}('${safeProvider}')" style="margin-top:8px;width:100%;">💾 保存所选模型</button>` : '';
+  const toggleBtn = count > limit ? `<button class="btn-sm btn-sm-edit model-toggle" onclick="toggleModelPicker('${pickerId}')">展开全部 ${count} 个模型</button>` : '';
+  return `<div class="model-picker collapsed" id="${pickerId}" data-limit="${limit}"><div class="model-picker-head"><div class="model-picker-title"><span>📋</span><span>${count} 个模型</span></div><div class="model-picker-actions">${controls}</div></div><input class="model-search" id="filter-${safeProvider}" type="text" placeholder="🔍 搜索模型 ID，例如 gpt-4o / qwen2.5" oninput="filterModels('${safeProvider}')"><div class="model-list" id="models-grid-${safeProvider}">${items}</div><div class="model-empty">未找到匹配模型</div>${toggleBtn}${saveBtn}</div>`;
+}
+
+function syncModelOptionState(input) {
+  const option = input.closest('.model-option');
+  if (!option) return;
+  option.classList.toggle('active', input.checked);
+  option.classList.toggle('dimmed', !input.checked);
+  let mark = option.querySelector('.model-option-mark');
+  if (input.checked && !mark) {
+    mark = document.createElement('span');
+    mark.className = 'model-option-mark';
+    mark.textContent = '✓';
+    option.appendChild(mark);
+  } else if (!input.checked && mark) {
+    mark.remove();
+  }
+}
+
+function toggleModelPicker(pickerId) {
+  const picker = document.getElementById(pickerId);
+  if (!picker) return;
+  const collapsed = picker.classList.toggle('collapsed');
+  const btn = picker.querySelector('.model-toggle');
+  const count = picker.querySelectorAll('.model-option').length;
+  if (btn) btn.textContent = collapsed ? `展开全部 ${count} 个模型` : '收起模型列表';
+}
+
+
+function renderAgentCard(agent) {
+  const isHermes = agent.id === 'hermes';
+  const icon = isHermes ? '⚡' : '🦀';
+  const manageTab = isHermes ? 'config' : 'openclaw';
+  const chips = [...(agent.platforms || []), ...(agent.providers || [])].slice(0, 12);
+  const modelDisplay = renderModelDisplay(agent.model || '', agent.provider || '', { count: agent.providers_count });
+  const stateClass = agent.running ? 'running' : 'stopped';
+  const stateLabel = agent.running ? '运行中' : '已停止';
+  const port = agent.port || (isHermes ? 'gateway' : '18789');
+  const sessions = agent.metrics ? `${agent.metrics.sessions || 0}/${agent.metrics.active_sessions_1h || 0}` : '—';
+  return `
+    <article class="agent-service-card-v2 ${stateClass} ${selectedAgentId === agent.id ? 'selected' : ''}" id="agent-card-${agent.id}" onclick="selectAgentCard('${agent.id}')">
+      <div class="agent-service-head"><div class="agent-service-id"><div class="agent-service-avatar">${icon}</div><div style="min-width:0;"><div class="agent-service-name">${escapeHtml(agent.name || agent.id)}</div><div class="agent-service-kind">${escapeHtml(agent.kind || 'agent')}${agent.mode ? ' · ' + escapeHtml(agent.mode) : ''}</div></div></div><span class="status-badge ${agent.running ? 'online' : 'offline'}"><span class="status-dot-sm ${agent.running ? 'green' : 'red'}"></span>${stateLabel}</span></div>
+      <div class="agent-service-desc">${escapeHtml(agent.description || '暂无描述')}</div>
+      <div class="agent-service-model"><div class="agent-meta-label">当前模型</div>${modelDisplay}</div>
+      <div class="agent-service-facts"><div class="agent-fact"><span>PID</span><strong>${agent.pid || '—'}</strong></div><div class="agent-fact"><span>端口/入口</span><strong>${escapeHtml(String(port))}</strong></div><div class="agent-fact"><span>Providers</span><strong>${agent.providers_count || 0}</strong></div><div class="agent-fact"><span>会话/1h</span><strong>${sessions}</strong></div></div>
+      <div class="agent-service-paths"><code title="${escapeHtml(agent.config_path || '')}">配置：${escapeHtml(agent.config_path || '—')}</code><code title="${escapeHtml(agent.log_path || '')}">日志：${escapeHtml(agent.log_path || '—')}</code></div>
+      <div class="agent-service-chips">${chips.length ? chips.map(p => `<span class="agent-chip-v2">${escapeHtml(String(p))}</span>`).join('') : '<span class="text-muted" style="font-size:0.75rem;">暂无通道/Provider 摘要</span>'}</div>
+      <div class="agent-service-actions" onclick="event.stopPropagation()"><button class="btn-sm btn-sm-edit" onclick="switchTab('${manageTab}')">管理</button><button class="btn-sm btn-sm-edit" onclick="toggleAgentDetails('${agent.id}')">详情</button><button class="btn-sm btn-sm-edit" onclick="selectAgentLogs('${agent.id}')">日志</button><button class="btn-sm btn-sm-save" onclick="restartAgent('${agent.id}', event)">重启</button><button class="btn-sm btn-sm-cancel" onclick="stopAgent('${agent.id}', event)" style="color:var(--accent-red);border-color:var(--accent-red);">停止</button></div>
+      <div class="agent-detail-panel" id="agent-detail-${agent.id}"><div>服务 ID：<span class="mono">${escapeHtml(agent.id || '—')}</span></div><div>日志路径：<span class="mono">${escapeHtml(agent.log_path || '—')}</span></div><div>配置路径：<span class="mono">${escapeHtml(agent.config_path || '—')}</span></div><div>运行模式：<span class="mono">${escapeHtml(agent.mode || agent.kind || 'agent')}</span></div></div>
+    </article>`;
+}
+
+function selectAgentCard(agentId) { selectedAgentId = agentId; localStorage.setItem('hermes-dashboard-selected-agent', agentId); updateSelectedAgentVisuals(); }
+function toggleAgentDetails(agentId) { const panel = document.getElementById('agent-detail-' + agentId); if (panel) panel.classList.toggle('open'); }
+function getSelectedAgent() { return agentsCache.find(a => a.id === selectedAgentId) || null; }
+function updateSelectedAgentVisuals() {
+  document.querySelectorAll('[id^="agent-card-"]').forEach(card => card.classList.remove('selected', 'agent-card-selected'));
+  const card = document.getElementById('agent-card-' + selectedAgentId); if (card) card.classList.add('selected');
+  const agent = getSelectedAgent();
+  const selected = document.getElementById('agentLogSelected'); const path = document.getElementById('agentLogPath'); const state = document.getElementById('agentObserverState'); const kpi = document.getElementById('agentSelectedKpi');
+  if (selected) selected.textContent = agent ? (agent.name || agent.id) : (selectedAgentId || '未选择');
+  if (path) path.textContent = agent?.log_path || '日志路径未确认';
+  if (state) { state.className = `status-badge ${agent?.running ? 'online' : 'offline'}`; state.innerHTML = agent ? `<span class="status-dot-sm ${agent.running ? 'green' : 'red'}"></span>${agent.running ? '运行中' : '已停止'}` : '--'; }
+  if (kpi) kpi.textContent = agent ? (agent.name || agent.id) : '--';
+}
+async function selectAgentLogs(agentId) { selectedAgentId = agentId; localStorage.setItem('hermes-dashboard-selected-agent', agentId); updateSelectedAgentVisuals(); pushAgentActivity('切换日志到 ' + agentId, 'muted'); await refreshSelectedAgentLogs(true); }
+async function refreshSelectedAgentLogs(showNotice=true) {
+  if (!selectedAgentId) return; const box = $('#agentLogs');
+  try { updateSelectedAgentVisuals(); if (box) { box.classList.add('loading'); box.textContent = '正在读取 ' + selectedAgentId + ' 日志…'; }
+    const data = await fetchAPI('/agents/' + encodeURIComponent(selectedAgentId) + '/logs?lines=180'); const logs = (data.logs || []).filter(l => l.trim()).join('\n');
+    if (box) { box.classList.remove('loading'); box.textContent = logs || `暂无 ${selectedAgentId} 日志（${data.path || ''}）`; if (agentLogFollow) box.scrollTop = box.scrollHeight; }
+    const path = document.getElementById('agentLogPath'); if (path && data.path) path.textContent = data.path; if (showNotice) showToast('✅ 日志已刷新: ' + selectedAgentId, 'success');
+  } catch (err) { if (box) { box.classList.remove('loading'); box.textContent = '读取日志失败: ' + err.message; } pushAgentActivity('日志读取失败：' + err.message, 'error'); }
+}
+function toggleAgentLogFollow() { agentLogFollow = !agentLogFollow; localStorage.setItem('hermes-dashboard-agent-log-follow', agentLogFollow ? '1' : '0'); const btn = document.getElementById('btnAgentLogFollow'); if (btn) btn.textContent = '自动滚动：' + (agentLogFollow ? '开' : '关'); const box = $('#agentLogs'); if (box && agentLogFollow) box.scrollTop = box.scrollHeight; }
+function clearAgentLogs() { const box = $('#agentLogs'); if (box) box.textContent = '日志显示已清空，点击刷新重新读取。'; pushAgentActivity('清空本地日志显示', 'muted'); }
+async function restartAgent(agentId, event) {
+  if (!confirmDanger('确认重启 ' + agentId + '？', '重启会中断该智能体当前连接数秒，然后自动恢复。')) return; const btn = event?.target; setButtonLoading(btn, true, '重启中'); showInlineNotice('正在重启 ' + agentId + '，请稍等…', ''); pushAgentActivity('发起重启：' + agentId, 'muted');
+  try { const resp = await fetch(API_BASE + '/agents/' + encodeURIComponent(agentId) + '/restart', { method: 'POST' }); const data = await resp.json(); if (data.status !== 'ok') throw new Error(data.error || '重启失败'); showToast('✅ ' + (data.message || agentId + ' 重启中'), 'success'); showInlineNotice('✅ ' + (data.message || agentId + ' 重启中'), 'success'); pushAgentActivity('重启成功：' + agentId, 'success'); setTimeout(() => loadAgentsConsole({manual:false}), 2500); }
+  catch (err) { showInlineNotice('❌ 重启失败：' + err.message, 'error'); showToast('❌ 重启失败: ' + err.message, 'error'); pushAgentActivity('重启失败：' + err.message, 'error'); } finally { setButtonLoading(btn, false); }
+}
+async function stopAgent(agentId, event) {
+  if (!confirmDanger('确认停止 ' + agentId + '？', '停止后该智能体不会回复消息，需手动点击重启恢复。')) return; const btn = event?.target; setButtonLoading(btn, true, '停止中'); showInlineNotice('正在停止 ' + agentId + '…', ''); pushAgentActivity('发起停止：' + agentId, 'muted');
+  try { const resp = await fetch(API_BASE + '/agents/' + encodeURIComponent(agentId) + '/stop', { method: 'POST' }); const data = await resp.json(); if (data.status !== 'ok') throw new Error(data.error || '停止失败'); showToast('⏹ ' + (data.message || agentId + ' 已停止'), 'success'); showInlineNotice('⏹ ' + (data.message || agentId + ' 已停止'), 'success'); pushAgentActivity('停止完成：' + agentId, 'success'); setTimeout(() => loadAgentsConsole({manual:false}), 1200); }
+  catch (err) { showInlineNotice('❌ 停止失败：' + err.message, 'error'); showToast('❌ 停止失败: ' + err.message, 'error'); pushAgentActivity('停止失败：' + err.message, 'error'); } finally { setButtonLoading(btn, false); }
+}
+
+// ===== OVERVIEW TAB =====
+async function loadOverview() {
+  try {
+    const [overview, tokenTrend, costTrend, modelsUsage, platformsUsage, sessions] = await Promise.all([
+      fetchAPI('/overview'),
+      fetchAPI('/token-trend?days=' + currentDays),
+      fetchAPI('/cost-trend?days=' + currentDays),
+      fetchAPI('/models-usage?days=' + currentDays),
+      fetchAPI('/platforms-usage?days=' + currentDays),
+      fetchAPI('/sessions?limit=20')
+    ]);
+
+    renderKPI(overview);
+    renderTokenTrend(tokenTrend);
+    renderCostTrend(costTrend);
+    renderModelPie(modelsUsage);
+    renderPlatformBar(platformsUsage);
+    renderTopSessions(sessions);
+  } catch (err) {
+    console.error('Overview load error:', err);
+    showToast('加载总览数据失败: ' + err.message);
+  }
+}
+
+function renderKPI(data) {
+  const row = $('#kpiRow');
+  if (!data) return;
+  const kpis = [
+    { value: formatNumber(data.sessions_count || 0), sub: '会话数' },
+    { value: formatNumber(data.messages_count || 0), sub: '消息数' },
+    { value: formatNumber(data.total_tokens || 0), sub: '总Token' },
+    { value: '$' + (data.total_estimated_cost || 0).toFixed(2), sub: '预估费用' },
+    { value: (data.active_days != null ? data.active_days : '--'), sub: 'Active Days' }
+  ];
+  const cards = row.querySelectorAll('.kpi-card');
+  kpis.forEach((kpi, i) => {
+    if (cards[i]) {
+      cards[i].querySelector('.kpi-value').textContent = kpi.value;
+      cards[i].querySelector('.kpi-value').classList.remove('skeleton');
+    }
+  });
+}
+
+function renderTokenTrend(data) {
+  const chart = initChart('chartTokenTrend');
+  if (!chart || !data) return;
+
+  const dates = data.dates || [];
+  const inputSeries = data.input || [];
+  const outputSeries = data.output || [];
+  const cacheSeries = data.cache_read || [];
+
+  chart.setOption({
+    ...darkChartOpts(),
+    legend: { data: ['Input', 'Output', '缓存读取'], top: 0, textStyle: { color: '#8b949e' } },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      axisLine: { lineStyle: { color: '#30363d' } },
+      axisLabel: { color: '#8b949e', fontSize: 11 }
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { color: '#8b949e', formatter: v => formatNumber(v) },
+      splitLine: { lineStyle: { color: '#21262d' } }
+    },
+    series: [
+      { name: 'Input', type: 'line', data: inputSeries, smooth: true, symbol: 'circle', symbolSize: 6,
+        lineStyle: { color: '#58a6ff', width: 2 }, itemStyle: { color: '#58a6ff' },
+        areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[
+          {offset:0, color:'rgba(88,166,255,0.2)'},{offset:1, color:'rgba(88,166,255,0)'}
+        ])}
+      },
+      { name: 'Output', type: 'line', data: outputSeries, smooth: true, symbol: 'circle', symbolSize: 6,
+        lineStyle: { color: '#3fb950', width: 2 }, itemStyle: { color: '#3fb950' },
+        areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[
+          {offset:0, color:'rgba(63,185,80,0.2)'},{offset:1, color:'rgba(63,185,80,0)'}
+        ])}
+      },
+      { name: '缓存读取', type: 'line', data: cacheSeries, smooth: true, symbol: 'circle', symbolSize: 6,
+        lineStyle: { color: '#a371f7', width: 2, type: 'dashed' }, itemStyle: { color: '#a371f7' },
+        areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[
+          {offset:0, color:'rgba(163,113,247,0.15)'},{offset:1, color:'rgba(163,113,247,0)'}
+        ])}
+      }
+    ]
+  });
+  chart.resize();
+}
+
+function renderCostTrend(data) {
+  const chart = initChart('chartCostTrend');
+  if (!chart || !data) return;
+  const dates = data.dates || [];
+  const costs = data.cost || [];
+  chart.setOption({
+    ...darkChartOpts(),
+    tooltip: { ...darkChartOpts().tooltip, formatter: p => `${p.name}<br/>成本: $${Number(p.value || 0).toFixed(6)}` },
+    xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: '#30363d' } }, axisLabel: { color: '#8b949e', fontSize: 11 } },
+    yAxis: { type: 'value', axisLabel: { color: '#8b949e', formatter: v => '$' + Number(v).toFixed(4) }, splitLine: { lineStyle: { color: '#21262d' } } },
+    series: [{
+      name: '成本', type: 'line', data: costs, smooth: true, symbol: 'circle', symbolSize: 6,
+      lineStyle: { color: '#db6d28', width: 2 }, itemStyle: { color: '#db6d28' },
+      areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(219,109,40,0.25)'},{offset:1,color:'rgba(219,109,40,0)'}]) }
+    }]
+  });
+  chart.resize();
+}
+
+function renderModelPie(data) {
+  const chart = initChart('chartModelPie');
+  if (!chart || !data) return;
+
+  const items = Array.isArray(data) ? data : (data.models || []);
+  const pieData = items.map(item => ({
+    name: item.model || item.name || 'Unknown',
+    value: item.total_tokens || item.tokens || item.value || 0
+  }));
+
+  chart.setOption({
+    ...darkChartOpts(),
+    tooltip: { ...darkChartOpts().tooltip, formatter: p => `${p.name}: ${formatNumber(p.value)} (${p.percent}%)` },
+    series: [{
+      type: 'pie',
+      radius: ['45%', '75%'],
+      center: ['50%', '55%'],
+      avoidLabelOverlap: false,
+      itemStyle: { borderRadius: 4, borderColor: '#1c2333', borderWidth: 2 },
+      label: { color: '#8b949e', fontSize: 11, formatter: '{b}\n{d}%' },
+      emphasis: { label: { fontSize: 14, fontWeight: 'bold' } },
+      data: pieData,
+      color: ['#58a6ff', '#3fb950', '#a371f7', '#db6d28', '#d2991d', '#39d2c0', '#f85149', '#8b949e']
+    }]
+  });
+  chart.resize();
+}
+
+function renderPlatformBar(data) {
+  const chart = initChart('chartPlatformBar');
+  if (!chart || !data) return;
+
+  const items = Array.isArray(data) ? data : (data.platforms || []);
+  const names = items.map(i => i.platform || i.name || 'Unknown');
+  const values = items.map(i => i.total_tokens || i.tokens || i.value || 0);
+
+  chart.setOption({
+    ...darkChartOpts(),
+    grid: { ...darkChartOpts().grid, left: 80 },
+    xAxis: {
+      type: 'value',
+      axisLabel: { color: '#8b949e', formatter: v => formatNumber(v) },
+      splitLine: { lineStyle: { color: '#21262d' } }
+    },
+    yAxis: {
+      type: 'category',
+      data: names,
+      axisLabel: { color: '#e6edf3', fontSize: 12 },
+      axisLine: { lineStyle: { color: '#30363d' } }
+    },
+    series: [{
+      type: 'bar',
+      data: values.map((v, i) => ({
+        value: v,
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+            { offset: 0, color: '#3fb950' },
+            { offset: 1, color: '#58a6ff' }
+          ]),
+          borderRadius: [0, 4, 4, 0]
+        }
+      })),
+      barWidth: 20,
+      label: { show: true, position: 'right', color: '#8b949e', formatter: v => formatNumber(v.value), fontSize: 11 }
+    }]
+  });
+  chart.resize();
+}
+
+function renderTopSessions(data) {
+  const tbody = $('#tableTopSessions tbody');
+  const items = Array.isArray(data) ? data : (data.sessions || []);
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px;">暂无数据</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.slice(0, 10).map(s => `
+    <tr>
+      <td>${escapeHtml(s.title || '未命名会话')}</td>
+      <td>${escapeHtml(s.source || s.platform || '--')}</td>
+      <td><span class="mono text-blue">${escapeHtml(s.model || '--')}</span></td>
+      <td class="text-right">${s.message_count || s.messages || 0}</td>
+      <td class="text-right mono">${formatNumber(s.total_tokens || s.tokens || 0)}</td>
+    </tr>
+  `).join('');
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ===== PROVIDER MANAGEMENT =====
+const KNOWN_PROVIDERS = {
+  openai:     { name: 'OpenAI',         url: 'https://api.openai.com/v1' },
+  deepseek:   { name: 'DeepSeek',       url: 'https://api.deepseek.com/v1' },
+  anthropic:  { name: 'Anthropic',      url: 'https://api.anthropic.com/v1' },
+  groq:       { name: 'Groq',           url: 'https://api.groq.com/openai/v1' },
+  google:     { name: 'Google AI',      url: 'https://generativelanguage.googleapis.com/v1beta' },
+  mistral:    { name: 'Mistral',        url: 'https://api.mistral.ai/v1' },
+  together:   { name: 'Together AI',    url: 'https://api.together.xyz/v1' },
+  openrouter: { name: 'OpenRouter',     url: 'https://openrouter.ai/api/v1' },
+  xai:        { name: 'xAI (Grok)',     url: 'https://api.x.ai/v1' },
+};
+
+function onProviderSelect(val) {
+  const customRow = $('#customNameRow');
+  const urlInput = $('#modalUrl');
+
+  if (val === 'custom') {
+    customRow.style.display = 'flex';
+    urlInput.value = '';
+    urlInput.placeholder = 'https://api.example.com/v1';
+  } else if (val && KNOWN_PROVIDERS[val]) {
+    customRow.style.display = 'none';
+    urlInput.value = KNOWN_PROVIDERS[val].url;
+  } else {
+    customRow.style.display = 'none';
+    urlInput.value = '';
+    urlInput.placeholder = '自动填充...';
+  }
+}
+
+// Modal
+function toggleKeyVisibility() {
+  const inp = $('#modalKey');
+  const btn = $('#keyToggleBtn');
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    btn.textContent = '🙈';
+  } else {
+    inp.type = 'password';
+    btn.textContent = '👁';
+  }
+}
+
+function showAddProvider() {
+  $('#modalTitle').textContent = '新增 Provider';
+  $('#modalEditName').value = '';
+  $('#modalName').value = '';
+  $('#modalName').disabled = false;
+  $('#modalCustomName').value = '';
+  $('#customNameRow').style.display = 'none';
+  $('#modalKey').value = '';
+  $('#modalUrl').value = '';
+  $('#modalUrl').placeholder = '自动填充...';
+  $('#modalSaveBtn').textContent = '💾 保存';
+  $('#providerModal').style.display = 'flex';
+}
+
+function showEditProvider(name, apiKey, baseUrl) {
+  $('#modalTitle').textContent = '编辑 Provider: ' + escapeHtml(name);
+  $('#modalEditName').value = name;
+  // Check if name matches a known provider
+  const known = KNOWN_PROVIDERS[name];
+  if (known) {
+    $('#modalName').value = name;
+    $('#modalName').disabled = true;
+    $('#customNameRow').style.display = 'none';
+  } else {
+    $('#modalName').value = 'custom';
+    $('#modalName').disabled = true;
+    $('#customNameRow').style.display = 'flex';
+    $('#modalCustomName').value = name;
+  }
+  $('#modalKey').value = apiKey;
+  $('#modalUrl').value = baseUrl || '';
+  $('#modalSaveBtn').textContent = '💾 更新';
+  $('#providerModal').style.display = 'flex';
+}
+
+function hideProviderModal() {
+  $('#providerModal').style.display = 'none';
+}
+
+// Close modal on backdrop click
+document.addEventListener('DOMContentLoaded', () => {
+  const modal = document.getElementById('providerModal');
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) hideProviderModal();
+    });
+  }
+});
+
+function getModalProviderName() {
+  const selectVal = $('#modalName').value;
+  if (selectVal === 'custom') {
+    return $('#modalCustomName').value.trim();
+  }
+  return selectVal;
+}
+
+async function saveProvider() {
+  const editName = $('#modalEditName').value.trim();
+  const name = getModalProviderName();
+  const apiKey = $('#modalKey').value.trim();
+  const baseUrl = $('#modalUrl').value.trim();
+
+  if (!name) { showToast('请选择或输入 Provider', 'error'); return; }
+
+  const body = { name, api_key: apiKey, base_url: baseUrl };
+
+  try {
+    let resp;
+    if (editName) {
+      resp = await fetch(API_BASE + '/config/providers/' + encodeURIComponent(editName), {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+    } else {
+      resp = await fetch(API_BASE + '/config/providers', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+    }
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${resp.status}`);
+    }
+    showToast(editName ? '✅ Provider 已更新' : '✅ Provider 已新增', 'success');
+    hideProviderModal();
+    loadConfig();
+  } catch (err) {
+    showToast('❌ 保存失败: ' + err.message, 'error');
+  }
+}
+
+async function switchProvider(name) {
+  if (!confirm(`切换到 Provider "${name}"？`)) return;
+  try {
+    const resp = await fetch(API_BASE + '/config/switch-provider', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider: name })
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${resp.status}`);
+    }
+    showToast('✅ 已切换到 ' + escapeHtml(name), 'success');
+    loadConfig();
+  } catch (err) {
+    showToast('❌ 切换失败: ' + err.message, 'error');
+  }
+}
+
+async function deleteProvider(name) {
+  if (!confirm(`确认删除 Provider "${name}"？\n\n此操作不可撤销。`)) return;
+  try {
+    const resp = await fetch(API_BASE + '/config/providers/' + encodeURIComponent(name), { method: 'DELETE' });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${resp.status}`);
+    }
+    showToast('✅ Provider 已删除', 'success');
+    loadConfig();
+  } catch (err) {
+    showToast('❌ 删除失败: ' + err.message, 'error');
+  }
+}
+
+async function testConnection(name) {
+  const safeName = name.replace(/'/g,"\\'");
+  const statusEl = document.getElementById('test-' + safeName);
+  if (statusEl) statusEl.innerHTML = '<span style="color:var(--accent-yellow);">⏳ 测试中...</span>';
+  try {
+    const resp = await fetch(API_BASE + '/config/providers/' + encodeURIComponent(name) + '/test', { method: 'POST' });
+    const data = await resp.json();
+    if (data.connected) {
+    statusEl.innerHTML = '<span style="color:var(--accent-green);">✅ 已连接</span>';
+    if (data.models && data.models.length > 0) {
+    const modelsDiv = document.getElementById('models-' + safeName);
+    if (modelsDiv) {
+      modelsDiv.style.display = 'block';
+      modelsDiv.style.maxHeight = '300px';
+      modelsDiv.innerHTML =
+        renderModelPicker({
+          prefix: 'hermes-models',
+          providerName: name,
+          models: data.models,
+          selected: [],
+          type: 'checkbox',
+          saveAction: 'saveModels',
+          limit: 5
+        });
+    }
+    } else if (data.raw_sample) {
+        const modelsDiv = document.getElementById('models-' + safeName);
+        if (modelsDiv) {
+          modelsDiv.style.display = 'block';
+          let msg = '<span style="font-size:0.7rem;color:var(--text-muted);">⚠️ 未返回模型列表（返回格式不标准）</span>';
+          if (data.raw_sample) {
+            msg += '<pre style="font-size:0.6rem;margin-top:6px;padding:6px;background:var(--bg-primary);border-radius:4px;max-height:160px;overflow:auto;color:var(--text-secondary);">' + escapeHtml(data.raw_sample) + '</pre>';
+          }
+          modelsDiv.innerHTML = msg;
+        }
+      }
+      showToast('✅ ' + name + ' 连接成功', 'success');
+    } else {
+      statusEl.innerHTML = '<span style="color:var(--accent-red);">❌ ' + escapeHtml(data.error || '连接失败') + '</span>';
+      showToast('❌ ' + (data.error || '连接失败'), 'error');
+    }
+  } catch (err) {
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--accent-red);">❌ 测试异常</span>';
+    showToast('❌ 测试异常: ' + err.message, 'error');
+  }
+}
+
+function checkAllModels(safeName) {
+  const div = document.getElementById('models-grid-' + safeName);
+  if (div) div.querySelectorAll('.model-cb').forEach(cb => {
+    cb.checked = true;
+    syncModelOptionState(cb);
+  });
+}
+function uncheckAllModels(safeName) {
+  const div = document.getElementById('models-grid-' + safeName);
+  if (div) div.querySelectorAll('.model-cb').forEach(cb => {
+    cb.checked = false;
+    syncModelOptionState(cb);
+  });
+}
+function filterModels(safeName) {
+  const filter = document.getElementById('filter-' + safeName);
+  const grid = document.getElementById('models-grid-' + safeName);
+  if (!filter || !grid) return;
+  const picker = grid.closest('.model-picker');
+  const q = filter.value.trim().toLowerCase();
+  let visible = 0;
+  if (picker) picker.classList.toggle('searching', !!q);
+  grid.querySelectorAll('.model-option').forEach(option => {
+    const match = !q || (option.dataset.name || '').includes(q);
+    option.style.display = match ? '' : 'none';
+    if (match) visible += 1;
+  });
+  const empty = picker ? picker.querySelector('.model-empty') : null;
+  if (empty) empty.style.display = visible ? 'none' : 'block';
+}
+async function saveModels(name) {
+  const safeName = name.replace(/'/g,"\\'");
+  const div = document.getElementById('models-grid-' + safeName);
+  if (!div) return;
+  const checked = Array.from(div.querySelectorAll('.model-cb:checked')).map(cb => cb.value);
+  try {
+    const resp = await fetch(API_BASE + '/config/providers/' + encodeURIComponent(name) + '/models', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ models: checked })
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    showToast('✅ 已保存 ' + data.count + ' 个模型到 ' + name, 'success');
+    loadConfig();
+  } catch (err) {
+    showToast('❌ 保存失败: ' + err.message, 'error');
+  }
+}
+async function clearModels(name) {
+  if (!confirm('确认清除 ' + name + ' 的模型白名单？（将恢复使用全部模型）')) return;
+  try {
+    const resp = await fetch(API_BASE + '/config/providers/' + encodeURIComponent(name) + '/models', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ models: [] })
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    showToast('✅ ' + name + ' 模型白名单已清除', 'success');
+    loadConfig();
+  } catch (err) {
+    showToast('❌ 清除失败: ' + err.message, 'error');
+  }
+}
+
+async function toggleProvider(name) {
+  try {
+    const resp = await fetch(API_BASE + '/config/providers/' + encodeURIComponent(name) + '/toggle', { method: 'PUT' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    showToast(data.enabled ? '✅ ' + name + ' 已启用' : '⏸ ' + name + ' 已禁用', 'success');
+    loadConfig();
+  } catch (err) {
+    showToast('❌ 操作失败: ' + err.message, 'error');
+  }
+}
+
+// ===== CONFIG TAB =====
+async function loadConfig() {
+  try {
+    const [configData, providersData] = await Promise.all([
+      fetchAPI('/config'),
+      fetchAPI('/config/providers')
+    ]);
+    renderProviders(providersData);
+    renderHermesConfigSummary(configData, providersData);
+    renderConfigPlatforms(configData);
+    renderConfigYaml(configData);
+  } catch (err) {
+    console.error('Config load error:', err);
+    showToast('加载配置数据失败: ' + err.message);
+  }
+}
+
+function getHermesModelConfig(config) {
+  const modelSection = config?.model || {};
+  return {
+    provider: modelSection.provider || config?.provider || config?.llm?.provider || '',
+    model: modelSection.default || modelSection.model || config?.default_model || config?.llm?.model || '',
+    baseUrl: modelSection.base_url || config?.base_url || config?.llm?.base_url || ''
+  };
+}
+
+function renderHermesConfigSummary(config, providersData) {
+  const el = $('#hermesConfigSummary');
+  if (!el) return;
+  const current = getHermesModelConfig(config);
+  const active = providersData?.active_provider || providersData?.activeProvider || current.provider || '—';
+  const providers = providersData?.providers || {};
+  const providerCfg = providers[active] || {};
+  const baseUrl = current.baseUrl || providerCfg.base_url || '—';
+  const modelRef = current.model || '—';
+  el.innerHTML = `
+    <div class="config-summary-item"><div class="config-summary-label">当前 Provider</div><div class="config-summary-value">${providerIcon(active)} ${escapeHtml(active)}</div></div>
+    <div class="config-summary-item"><div class="config-summary-label">当前模型</div><div class="config-summary-value">${renderModelDisplay(modelRef, active, { active: true })}</div></div>
+    <div class="config-summary-item"><div class="config-summary-label">Base URL</div><div class="config-summary-value">${escapeHtml(baseUrl)}</div></div>
+    <div class="config-summary-item"><div class="config-summary-label">Provider 数</div><div class="config-summary-value">${Object.keys(providers).length}</div></div>
+  `;
+}
+
+function renderProviders(data) {
+  const grid = $('#providerGrid');
+  const providers = data?.providers || {};
+  const active = data?.active_provider || data?.activeProvider || '';
+  const names = Object.keys(providers);
+
+  const providerIcons = {
+    openai: '🧠', deepseek: '🔍', anthropic: '🎭', groq: '⚡',
+    google: '🌐', mistral: '💨', together: '🤝', openrouter: '🔀', xai: '🚀'
+  };
+
+  if (!names.length) {
+    grid.innerHTML = `<div style="text-align:center;color:var(--text-muted);padding:40px 20px;">
+      <div style="font-size:2.5rem;margin-bottom:12px;">🔌</div>
+      <div style="font-size:0.95rem;font-weight:600;margin-bottom:4px;">暂无 Provider 配置</div>
+      <div style="font-size:0.78rem;">点击右上角 <span style="color:var(--accent-green);">＋ 新增</span> 添加 API Provider</div>
+    </div>`;
+    return;
+  }
+
+  let html = '<div class="provider-grid">';
+  names.forEach(name => {
+    const p = providers[name];
+    const isActive = (name === active);
+    const enabled = p.enabled !== false;
+    const keyValue = p.api_key || p.apiKey || '';
+    const baseUrl = p.base_url || p.baseUrl || p.base_url || '';
+    const keyMasked = p.api_key_masked || p.apiKeyMasked || (keyValue ? keyValue.slice(0,4)+'...'+keyValue.slice(-4) : '未设置');
+    const hasKey = !!keyValue || !!p.apiKeyMasked || !!p.api_key_masked;
+    const icon = providerIcons[name] || '🔌';
+    const escName = escapeHtml(name).replace(/'/g,"\\'");
+    const escKey = escapeHtml(keyValue).replace(/'/g,"\\'");
+    const escUrl = escapeHtml(baseUrl).replace(/'/g,"\\'");
+    const savedModels = p.models || [];
+    const savedModelsJson = JSON.stringify(savedModels).replace(/'/g,"\\'");
+
+    html += `
+      <div class="provider-card" id="card-${escName}" style="${isActive ? 'border-color:var(--accent-green);box-shadow:0 0 16px rgba(63,185,80,0.2);' : ''}${!enabled ? 'opacity:0.55;' : ''}">
+        <div class="provider-name">
+          <span style="font-size:1.3rem;">${icon}</span>
+          <span style="color:${isActive ? 'var(--accent-green)' : 'var(--text-primary)'};">${escapeHtml(name)}</span>
+          ${isActive ? '<span class="status-badge online" style="margin-left:8px;"><span class="status-dot-sm green"></span> 当前</span>' : ''}
+          ${!enabled ? '<span class="status-badge offline" style="margin-left:8px;"><span class="status-dot-sm red"></span> 已禁用</span>' : ''}
+          <span style="margin-left:auto;font-size:0.7rem;" id="test-${escName}"></span>
+        </div>
+        <div class="provider-field">
+          <span class="label">API Key</span>
+          <span class="value" style="font-size:0.72rem;color:${hasKey ? 'var(--accent-green)' : 'var(--text-muted)'};">${escapeHtml(keyMasked)}</span>
+        </div>
+        <div class="provider-field">
+          <span class="label">Base URL</span>
+          <span class="value" style="font-size:0.7rem;" title="${escapeHtml(baseUrl || '')}">${escapeHtml(baseUrl || '—')}</span>
+        </div>
+        <div id="models-${escName}" style="display:${savedModels.length > 0 ? 'block' : 'none'};">
+          ${savedModels.length > 0 ? renderModelPicker({ prefix: 'hermes-saved', providerName: name, models: savedModels, selected: savedModels, type: 'checkbox', saveAction: 'saveModels', limit: 5 }) : ''}
+        </div>
+        <div class="card-actions">
+          <button class="btn-sm ${enabled ? 'btn-sm-cancel' : 'btn-sm-save'}" onclick="toggleProvider('${escName}')" style="font-size:0.75rem;">${enabled ? '⏸ 禁用' : '▶ 启用'}</button>
+          <button class="btn-sm btn-sm-edit" onclick="testConnection('${escName}')" style="font-size:0.75rem;">🔍 测试</button>
+          ${savedModels.length > 0 ? `<button class="btn-sm btn-sm-save" onclick="clearModels('${escName}')" style="font-size:0.7rem;">🗑 清除模型</button>` : ''}
+          ${!isActive && enabled ? `<button class="btn-sm btn-sm-save" onclick="switchProvider('${escName}')">✅ 切换</button>` : ''}
+          <button class="btn-sm btn-sm-edit" onclick="showEditProvider('${escName}', '${escKey}', '${escUrl}')">✏️</button>
+          <button class="btn-sm btn-sm-cancel" onclick="deleteProvider('${escName}')" style="color:var(--accent-red);border-color:var(--accent-red);">🗑</button>
+        </div>
+      </div>
+    `;
+  });
+  html += '</div>';
+  grid.innerHTML = html;
+}
+
+function renderConfigPlatforms(config) {
+  const list = $('#configPlatformList');
+  const platforms = [
+    { name: 'QQ', key: 'qq', enabled: config?.platforms?.qq?.enabled ?? config?.qq?.enabled ?? true },
+    { name: 'Telegram', key: 'telegram', enabled: config?.platforms?.telegram?.enabled ?? config?.telegram?.enabled ?? true },
+    { name: 'Discord', key: 'discord', enabled: config?.platforms?.discord?.enabled ?? config?.discord?.enabled ?? false },
+    { name: 'WeChat', key: 'wechat', enabled: config?.platforms?.wechat?.enabled ?? config?.wechat?.enabled ?? false },
+    { name: 'Web', key: 'web', enabled: config?.platforms?.web?.enabled ?? config?.web?.enabled ?? true },
+    { name: 'API', key: 'api', enabled: config?.platforms?.api?.enabled ?? config?.api?.enabled ?? true }
+  ];
+
+  const icons = { QQ: '🐧', Telegram: '✈️', Discord: '🎮', WeChat: '💬', Web: '🌍', API: '🔗' };
+
+  list.innerHTML = platforms.map(p => `
+    <div class="platform-status-item">
+      <div class="platform-icon">${icons[p.name] || '📡'}</div>
+      <div style="flex:1;">
+        <div style="font-weight:600;font-size:0.9rem;">${p.name}</div>
+        <div style="font-size:0.75rem;color:var(--text-muted);">${p.enabled ? '已启用' : '未启用'}</div>
+      </div>
+      <span class="status-dot-sm ${p.enabled ? 'green' : 'red'}"></span>
+    </div>
+  `).join('');
+}
+
+function renderConfigYaml(config) {
+  const block = $('#configYaml');
+  block.classList.remove('skeleton');
+  block.style.height = 'auto';
+
+  // Build a pretty display of key config fields
+  const current = getHermesModelConfig(config);
+  const fields = [
+    ['模型', current.model],
+    ['Provider', current.provider],
+    ['Base URL', current.baseUrl],
+    ['温度', config?.temperature ?? config?.llm?.temperature],
+    ['Max Tokens', config?.max_tokens ?? config?.llm?.max_tokens],
+    ['系统提示词', config?.system_prompt ? '(已设置)' : '(未设置)'],
+    ['日志级别', config?.log_level],
+    ['数据目录', config?.data_dir],
+    ['数据库路径', config?.db_path],
+  ];
+
+  let html = '';
+  fields.forEach(([key, val]) => {
+    if (val !== undefined && val !== null) {
+      html += `<span style="color:var(--accent-blue);">${key}:</span> <span style="color:var(--accent-green);">${escapeHtml(String(val))}</span>\n`;
+    }
+  });
+
+  // Add platforms section
+  const platforms = config?.platforms || {};
+  if (Object.keys(platforms).length > 0) {
+    html += '\n<span style="color:var(--text-muted);"># 平台配置</span>\n';
+    Object.entries(platforms).forEach(([name, cfg]) => {
+      if (cfg && typeof cfg === 'object') {
+        const enabled = cfg.enabled !== false;
+        html += `<span style="color:var(--accent-blue);">platforms.${name}.enabled:</span> <span style="color:${enabled ? 'var(--accent-green)' : 'var(--accent-red)'};">${enabled}</span>\n`;
+      }
+    });
+  }
+
+  block.innerHTML = html;
+}
+
+// ===== USAGE TAB =====
+async function loadUsage() {
+  try {
+    const [cacheRate, cacheTrend, modelsUsage, platformsUsage] = await Promise.all([
+      fetchAPI('/cache-hit-rate?days=' + currentDays),
+      fetchAPI('/cache-hit-rate?days=' + currentDays).catch(() => null),
+      fetchAPI('/models-usage?days=' + currentDays),
+      fetchAPI('/platforms-usage?days=' + currentDays)
+    ]);
+
+    renderCacheGauge(cacheRate);
+    if (cacheTrend) renderCacheTrend(cacheTrend);
+    renderModelTable(modelsUsage);
+    renderPlatformTable(platformsUsage);
+  } catch (err) {
+    console.error('Usage load error:', err);
+    showToast('加载用量数据失败: ' + err.message);
+  }
+}
+
+function renderCacheGauge(data) {
+  const chart = initChart('chartCacheGauge');
+  if (!chart) return;
+
+  const rate = data?.overall_rate ?? data?.rate ?? data ?? 0;
+  // overall_rate is already 0-100, not 0-1
+  const pct = typeof rate === 'number' ? rate : parseFloat(rate) || 0;
+  const pctDisplay = pct.toFixed(1);
+
+  chart.setOption({
+    ...darkChartOpts(),
+    series: [{
+      type: 'gauge',
+      startAngle: 210,
+      endAngle: -30,
+      center: ['50%', '60%'],
+      radius: '85%',
+      min: 0,
+      max: 100,
+      splitNumber: 10,
+      axisLine: {
+        show: true,
+        lineStyle: {
+          width: 18,
+          color: [
+            [0.3, '#f85149'],
+            [0.6, '#d2991d'],
+            [0.8, '#3fb950'],
+            [1, '#58a6ff']
+          ]
+        }
+      },
+      pointer: { icon: 'path://M12.8,0.7l12,40.1H0.7L12.8,0.7z', length: '70%', width: 8, itemStyle: { color: 'auto' } },
+      axisTick: { distance: -18, length: 6, lineStyle: { width: 1, color: '#8b949e' } },
+      splitLine: { distance: -20, length: 18, lineStyle: { width: 2, color: '#8b949e' } },
+      axisLabel: { color: '#8b949e', distance: 30, fontSize: 11, formatter: v => v + '%' },
+      anchor: { show: true, showAbove: true, size: 20, itemStyle: { borderWidth: 2, borderColor: '#30363d' } },
+      title: { show: true, offsetCenter: [0, '85%'], fontSize: 13, color: '#8b949e' },
+      detail: {
+        valueAnimation: true,
+        fontSize: 36,
+        fontWeight: 'bold',
+        fontFamily: 'SF Mono, monospace',
+        offsetCenter: [0, '55%'],
+        formatter: '{value}%',
+        color: pct >= 70 ? '#3fb950' : pct >= 40 ? '#d2991d' : '#f85149'
+      },
+      data: [{ value: parseFloat(pctDisplay), name: '缓存命中率' }]
+    }]
+  });
+  chart.resize();
+}
+
+function renderCacheTrend(data) {
+  const chart = initChart('chartCacheTrend');
+  if (!chart || !data) return;
+
+  const trendData = data.trend || [];
+  const dates = trendData.map(d => d.date);
+  const rates = trendData.map(d => (d.rate != null ? d.rate : 0));
+
+  chart.setOption({
+    ...darkChartOpts(),
+    xAxis: {
+      type: 'category',
+      data: dates,
+      axisLine: { lineStyle: { color: '#30363d' } },
+      axisLabel: { color: '#8b949e', fontSize: 11 }
+    },
+    yAxis: {
+      type: 'value',
+      min: 0,
+      max: 100,
+      axisLabel: { color: '#8b949e', formatter: v => v + '%' },
+      splitLine: { lineStyle: { color: '#21262d' } }
+    },
+    series: [{
+      type: 'line',
+      data: rates,
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 6,
+      lineStyle: { color: '#39d2c0', width: 2 },
+      itemStyle: { color: '#39d2c0' },
+      areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[
+        {offset:0, color:'rgba(57,210,192,0.25)'},{offset:1, color:'rgba(57,210,192,0)'}
+      ])},
+      markLine: {
+        silent: true,
+        data: [{ yAxis: 70, lineStyle: { color: '#3fb950', type: 'dashed' }, label: { formatter: '70%', color: '#3fb950' } }]
+      }
+    }]
+  });
+  chart.resize();
+}
+
+function renderModelTable(data) {
+  const tbody = $('#tableModelUsage tbody');
+  const items = Array.isArray(data) ? data : (data?.models || []);
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px;">暂无数据</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(m => `
+    <tr>
+      <td><span class="mono text-blue">${escapeHtml(m.model || m.name || '--')}</span></td>
+      <td class="text-right mono">${formatNumber(m.input_tokens || m.input || 0)}</td>
+      <td class="text-right mono">${formatNumber(m.output_tokens || m.output || 0)}</td>
+      <td class="text-right mono">${formatNumber(m.cache_tokens || m.cache || m.cache_read_tokens || 0)}</td>
+      <td class="text-right mono text-green">${formatCost(m.cost || m.total_cost || 0)}</td>
+    </tr>
+  `).join('');
+}
+
+function renderPlatformTable(data) {
+  const tbody = $('#tablePlatformUsage tbody');
+  const items = Array.isArray(data) ? data : (data?.platforms || []);
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px;">暂无数据</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(p => `
+    <tr>
+      <td>${escapeHtml(p.platform || p.name || '--')}</td>
+      <td class="text-right mono">${formatNumber(p.input_tokens || p.input || 0)}</td>
+      <td class="text-right mono">${formatNumber(p.output_tokens || p.output || 0)}</td>
+      <td class="text-right mono">${formatNumber(p.cache_tokens || p.cache || p.cache_read_tokens || 0)}</td>
+      <td class="text-right mono text-green">${formatCost(p.cost || p.total_cost || 0)}</td>
+    </tr>
+  `).join('');
+}
+
+// ===== GATEWAY TAB =====
+async function loadKnowledgeStatus() {
+  try {
+    const res = await fetch('https://notes.zmjjkkk.fun/api/status');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const container = $('#knowledgeStatus');
+    container.innerHTML = `
+      <div style="display:flex;gap:24px;flex-wrap:wrap;">
+        <div>
+          <div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:4px;">知识库状态</div>
+          <span class="status-badge online"><span class="status-dot-sm green"></span> 运行中</span>
+        </div>
+        <div>
+          <div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:4px;">Vault 路径</div>
+          <div style="font-size:0.9rem;font-weight:600;font-family:var(--font-mono);">${escapeHtml(data.vault)}</div>
+        </div>
+        <div>
+          <div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:4px;">文件数</div>
+          <div style="font-size:1.2rem;font-weight:700;color:var(--accent-purple);">${data.files_count}</div>
+        </div>
+        <div>
+          <div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:4px;">分类</div>
+          <div style="font-size:0.85rem;">${(data.categories || []).map(c => `<span style="display:inline-block;margin:2px 4px 2px 0;padding:2px 8px;background:var(--bg-card);border-radius:12px;font-size:0.75rem;">${escapeHtml(c)}</span>`).join('')}</div>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    $('#knowledgeStatus').innerHTML = `<div style="padding:12px;color:var(--text-muted);font-size:0.85rem;">知识库服务未连接: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function loadGateway() {
+  try {
+    const status = await fetchAPI('/status');
+    loadKnowledgeStatus();
+    renderGatewayPlatforms(status);
+    renderGatewayStatus(status);
+    renderCronInfo(status);
+    updateHeaderStatus(status);
+  } catch (err) {
+    console.error('Gateway load error:', err);
+    showToast('加载网关状态失败: ' + err.message);
+  }
+}
+
+function renderGatewayPlatforms(status) {
+  const list = $('#gatewayPlatformList');
+  const platforms = status?.platforms || status?.gateway?.platforms || [];
+  const knownPlatforms = ['QQ', 'Telegram', 'Discord', 'WeChat', 'Web', 'API'];
+  const icons = { QQ: '🐧', Telegram: '✈️', Discord: '🎮', WeChat: '💬', Web: '🌍', API: '🔗' };
+
+  let items;
+  if (platforms.length > 0) {
+    items = platforms;
+  } else {
+    // Build from status data
+    items = knownPlatforms.map(name => ({
+      name,
+      status: status?.[name.toLowerCase()]?.connected ? 'online' : (status?.[name.toLowerCase()]?.configured ? 'offline' : 'unknown'),
+      connected: status?.[name.toLowerCase()]?.connected ?? false,
+      configured: status?.[name.toLowerCase()]?.configured ?? (name === 'Web' || name === 'API')
+    }));
+  }
+
+  list.innerHTML = items.map(p => {
+    const fromSession = p.from_session === true;
+    const connected = p.connected ?? (p.status === 'online' || p.status === 'connected' || fromSession);
+    const configured = p.configured ?? (p.status !== 'unknown' || fromSession);
+    const statusClass = connected ? 'green' : (configured ? 'yellow' : 'red');
+    const statusText = connected ? '已连接' : (configured ? '未连接' : '未配置');
+    const badgeClass = connected ? 'online' : (configured ? 'warning' : 'offline');
+    return `
+      <div class="platform-status-item">
+        <div class="platform-icon">${icons[p.name] || '📡'}</div>
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:0.9rem;">${escapeHtml(p.name)}</div>
+          <div style="font-size:0.75rem;color:var(--text-muted);">${statusText}</div>
+        </div>
+        <span class="status-badge ${badgeClass}">
+          <span class="status-dot-sm ${statusClass}"></span> ${statusText}
+        </span>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderGatewayStatus(status) {
+  const container = $('#gatewayStatus');
+  const uptime = status?.uptime ?? 0;
+  const activeSessions = status?.active_sessions ?? 0;
+  const totalSessions = status?.total_sessions ?? 0;
+
+  container.innerHTML = `
+    <div>
+      <div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:4px;">运行时间 (Uptime)</div>
+      <div style="font-size:1.3rem;font-weight:700;font-family:var(--font-mono);">${formatUptime(uptime)}</div>
+    </div>
+    <div>
+      <div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:4px;">活跃会话 (1h)</div>
+      <div style="font-size:1.3rem;font-weight:700;font-family:var(--font-mono);">${activeSessions}</div>
+    </div>
+    <div>
+      <div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:4px;">总会话数</div>
+      <div style="font-size:1.3rem;font-weight:700;font-family:var(--font-mono);">${totalSessions}</div>
+    </div>
+    <div>
+      <div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:4px;">状态</div>
+      <span class="status-badge online"><span class="status-dot-sm green"></span> 运行中</span>
+    </div>
+  `;
+}
+
+function renderCronInfo(status) {
+  const container = $('#cronInfo');
+  const cronCount = status?.cron_count ?? status?.cron?.count ?? status?.cron_jobs?.length ?? 0;
+  const cronJobs = status?.cron_jobs || status?.cron?.jobs || [];
+
+  let html = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+      <div style="font-size:2.5rem;font-weight:800;font-family:var(--font-mono);color:var(--accent-purple);">${cronCount}</div>
+      <div style="color:var(--text-secondary);">个定时任务</div>
+    <div class="card grid-full" style="margin-top:20px;">
+      <div class="card-header">🕸️ 知识库状态 <a href="https://notes.zmjjkkk.fun" target="_blank" class="btn-sm btn-sm-edit" style="margin-left:auto;text-decoration:none;">打开独立知识库 Web</a></div>
+      <div class="card-body" id="knowledgeStatus"><div class="loading-overlay"><div class="spinner"></div></div></div>
+    </div>
+    </div>
+  `;
+
+  if (cronJobs.length > 0) {
+    html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+    cronJobs.slice(0, 10).forEach(job => {
+      const name = job.name || job.id || 'Task';
+      const schedule = job.schedule || job.cron || '--';
+      const enabled = job.enabled !== false;
+      html += `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border-light);">
+          <span style="font-size:0.82rem;">${escapeHtml(name)}</span>
+          <span style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:0.72rem;color:var(--text-muted);font-family:var(--font-mono);">${escapeHtml(schedule)}</span>
+            <span class="status-dot-sm ${enabled ? 'green' : 'red'}"></span>
+          </span>
+        </div>
+      `;
+    });
+    html += '</div>';
+  } else {
+    html += '<div style="color:var(--text-muted);font-size:0.82rem;">暂无定时任务配置</div>';
+  }
+
+  container.innerHTML = html;
+}
+
+function updateHeaderStatus(status) {
+  const dot = $('#header-status-dot');
+  const text = $('#header-status-text');
+  const uptimeEl = $('#header-uptime');
+
+  const running = status?.running !== false && status?.gateway_running !== false;
+  dot.className = 'status-dot ' + (running ? 'online' : 'offline');
+  text.textContent = running ? '系统运行中' : '系统离线';
+
+  // Use system uptime from /api/status
+  const uptime = status?.uptime ?? 0;
+  uptimeEl.textContent = formatUptime(uptime);
+}
+
+// ===== SESSIONS TAB =====
+let allSessionsCache = [];
+
+async function loadSessions(page) {
+  page = page || currentSessionPage;
+  try {
+    const data = await fetchAPI(`/sessions?limit=${SESSION_PAGE_SIZE}&offset=${(page-1)*SESSION_PAGE_SIZE}`);
+    allSessionsCache = data.sessions || data.items || [];
+    renderSessionsTable(data);
+    renderSessionPagination(data, page);
+  } catch (err) {
+    console.error('Sessions load error:', err);
+    showToast('加载会话数据失败: ' + err.message);
+  }
+}
+
+function searchSessions() {
+  const q = ($('#sessionSearch')?.value || '').toLowerCase();
+  if (!q) {
+    renderSessionsTable({ sessions: allSessionsCache });
+    return;
+  }
+  const filtered = allSessionsCache.filter(s =>
+    (s.title || '').toLowerCase().includes(q) ||
+    (s.source || '').toLowerCase().includes(q) ||
+    (s.model || '').toLowerCase().includes(q)
+  );
+  renderSessionsTable({ sessions: filtered });
+}
+
+function renderSessionsTable(data) {
+  const tbody = $('#tableSessions tbody');
+  const items = Array.isArray(data) ? data : (data?.sessions || data?.items || []);
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px;">暂无会话数据</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(s => `
+    <tr>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(s.title || s.name || '未命名会话')}</td>
+      <td>${escapeHtml(s.source || s.platform || '--')}</td>
+      <td><span class="mono text-blue">${escapeHtml(s.model || '--')}</span></td>
+      <td class="text-muted" style="font-size:0.78rem;">${formatDate(s.created_at || s.timestamp || s.time)}</td>
+      <td class="text-right mono">${s.message_count || s.messages || 0}</td>
+      <td class="text-right mono">${formatNumber(s.total_tokens || s.tokens || 0)}</td>
+      <td class="text-right mono text-green">${formatCost(s.cost || s.total_cost || 0)}</td>
+    </tr>
+  `).join('');
+}
+
+function renderSessionPagination(data, currentPage) {
+  const container = $('#sessionPagination');
+  const total = data?.total ?? data?.count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / SESSION_PAGE_SIZE));
+
+  $('#sessionCount').textContent = `共 ${total} 条`;
+
+  let html = '';
+  html += `<button ${currentPage <= 1 ? 'disabled' : ''} data-page="${currentPage - 1}">‹ 上一页</button>`;
+
+  const startPage = Math.max(1, currentPage - 2);
+  const endPage = Math.min(totalPages, currentPage + 2);
+
+  for (let i = startPage; i <= endPage; i++) {
+    html += `<button class="${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+  }
+
+  html += `<button ${currentPage >= totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">下一页 ›</button>`;
+  html += `<span class="page-info">第 ${currentPage}/${totalPages} 页</span>`;
+
+  container.innerHTML = html;
+
+  container.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const page = parseInt(btn.dataset.page);
+      if (page && page !== currentSessionPage) {
+        currentSessionPage = page;
+        loadSessions(page);
+      }
+    });
+  });
+}
+
+// ===== OPENCLAW TAB =====
+let ocProvidersCache = {};
+let ocLoaded = false;
+
+async function loadOpenClaw() {
+  try {
+    const [status, cfgData, logData] = await Promise.all([
+      fetchAPI('/openclaw/status'),
+      fetchAPI('/openclaw/config'),
+      fetchAPI('/openclaw/logs?lines=30').catch(() => ({logs: []}))
+    ]);
+    ocLoaded = true;
+    renderOpenClawConfigSummary(status, cfgData);
+    renderOcStatus(status);
+    renderOcProviders(cfgData);
+    renderOcQqbot(cfgData);
+    renderOcGateway(cfgData);
+    renderOcLogs(logData);
+  } catch (err) {
+    console.error('OpenClaw load error:', err);
+    showToast('加载 OpenClaw 数据失败: ' + err.message);
+  }
+}
+
+function renderOpenClawConfigSummary(status, cfgData) {
+  const el = $('#openclawConfigSummary');
+  if (!el) return;
+  const cfg = cfgData?.config || {};
+  const defaultModel = cfg.agents?.defaults?.model || '';
+  const parts = splitModelRef(defaultModel, '');
+  const providers = cfg.models?.providers || {};
+  const gw = cfg.gateway || {};
+  const running = status?.running ?? false;
+  el.innerHTML = `
+    <div class="config-summary-item"><div class="config-summary-label">当前 Provider</div><div class="config-summary-value">${providerIcon(parts.provider)} ${escapeHtml(parts.provider || '—')}</div></div>
+    <div class="config-summary-item"><div class="config-summary-label">当前模型</div><div class="config-summary-value">${renderModelDisplay(defaultModel || '—', parts.provider, { active: true })}</div></div>
+    <div class="config-summary-item"><div class="config-summary-label">Gateway</div><div class="config-summary-value">${running ? '🟢 运行中' : '🔴 已停止'} · ${escapeHtml(String(gw.mode || 'local'))}:${escapeHtml(String(gw.port || 18789))}</div></div>
+    <div class="config-summary-item"><div class="config-summary-label">Provider 数</div><div class="config-summary-value">${Object.keys(providers).length}</div></div>
+  `;
+}
+
+function renderOcStatus(status) {
+  const el = $('#ocStatus');
+  if (!el) return;
+  const running = status?.running ?? false;
+  const pid = status?.pid;
+  const portOpen = status?.port_open ?? false;
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;">
+      <div>
+        <div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:4px;">状态</div>
+        <span class="status-badge ${running ? 'online' : 'offline'}"><span class="status-dot-sm ${running ? 'green' : 'red'}"></span> ${running ? '运行中' : '已停止'}</span>
+      </div>
+      <div>
+        <div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:4px;">PID</div>
+        <div style="font-family:var(--font-mono);font-size:0.9rem;">${pid || '—'}</div>
+      </div>
+      <div>
+        <div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:4px;">端口 18789</div>
+        <span class="status-badge ${portOpen ? 'online' : 'offline'}"><span class="status-dot-sm ${portOpen ? 'green' : 'red'}"></span> ${portOpen ? '已监听' : '未监听'}</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderOcGateway(cfgData) {
+  const cfg = cfgData?.config || {};
+  const gw = cfg.gateway || {};
+  const port = document.getElementById('ocPort');
+  const mode = document.getElementById('ocMode');
+  if (port) port.value = gw.port ?? 18789;
+  if (mode) mode.value = gw.mode || 'local';
+  const agentModel = document.getElementById('ocAgentModel');
+  const defaultModel = (cfg.agents?.defaults?.model) || '';
+  if (agentModel) agentModel.value = defaultModel;
+  const preview = document.getElementById('ocCurrentModelPreview');
+  if (preview) preview.innerHTML = '<div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:6px;">当前默认模型</div>' + renderModelDisplay(defaultModel, '', { active: true });
+}
+
+function normalizeModelId(m) {
+  if (typeof m === 'string') return m;
+  if (m && typeof m === 'object') return m.id || m.name || m.model || '';
+  return '';
+}
+
+function renderOcProviders(cfgData) {
+  const container = $('#ocProviders');
+  if (!container) return;
+  const cfg = cfgData?.config || {};
+  const providers = cfg.models?.providers || {};
+  const activeModel = cfg.agents?.defaults?.model || '';
+  const activeProvider = activeModel.includes('/') ? activeModel.split('/')[0] : '';
+  ocProvidersCache = providers;
+  const names = Object.keys(providers);
+
+  if (!names.length) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">🔌</div><div>暂无 Provider 配置</div><button class="btn-sm btn-sm-save" onclick="showOcAddProvider()" style="margin-top:10px;">＋ 新增 Provider</button></div>';
+    return;
+  }
+
+  let html = '<div class="provider-grid">';
+  names.forEach(name => {
+    const p = providers[name] || {};
+    const isActive = name === activeProvider;
+    const keyMasked = p.apiKeyMasked || p.apiKey || '未设置';
+    const hasKey = p.apiKeyMasked ? p.apiKeyMasked !== '***' : !!p.apiKey;
+    const escName = escapeHtml(name).replace(/'/g,"\\'");
+    const models = p.models || [];
+    const modelIds = models.map(normalizeModelId).filter(Boolean);
+    const icon = name === 'deepseek' ? '🔍' : (name === 'myproxy' ? '🚇' : '🧠');
+    html += `
+      <div class="provider-card" id="oc-provider-${escName}" style="${isActive ? 'border-color:var(--accent-green);box-shadow:0 0 16px rgba(63,185,80,0.2);' : ''}">
+        <div class="provider-name">
+          <span style="font-size:1.3rem;">${icon}</span>
+          <span style="color:${isActive ? 'var(--accent-green)' : 'var(--text-primary)'};">${escapeHtml(name)}</span>
+          ${isActive ? '<span class="status-badge online" style="margin-left:8px;"><span class="status-dot-sm green"></span> 当前默认</span>' : ''}
+        </div>
+        <div class="provider-field"><span class="label">API</span><span class="value mono" style="font-size:0.72rem;">${escapeHtml(p.api || 'openai-completions')}</span></div>
+        <div class="provider-field"><span class="label">Base URL</span><span class="value" style="font-size:0.7rem;" title="${escapeHtml(p.baseUrl || p.base_url || '')}">${escapeHtml(p.baseUrl || p.base_url || '—')}</span></div>
+        <div class="provider-field"><span class="label">API Key</span><span class="value" style="font-size:0.72rem;color:${hasKey ? 'var(--accent-green)' : 'var(--text-muted)'};">${escapeHtml(keyMasked)}</span></div>
+        <div class="model-summary-card" id="oc-models-${escName}" style="display:${modelIds.length ? 'block' : 'none'};">
+          ${modelIds.length ? renderModelPicker({
+            prefix: 'oc-models',
+            providerName: name,
+            models: modelIds,
+            selected: activeModel,
+            type: 'radio',
+            radioName: 'oc-model-default',
+            onChange: 'setOcDefaultModel',
+            limit: 5
+          }) : ''}
+        </div>
+        <div class="card-actions">
+          <button class="btn-sm btn-sm-edit" onclick="showOcEditProvider('${escName}')" style="font-size:0.75rem;">✏️ 编辑</button>
+          <button class="btn-sm btn-sm-save" onclick="testOcProvider('${escName}')" style="font-size:0.75rem;">🔍 检测模型</button>
+          <button class="btn-sm btn-sm-save" onclick="showOcAddProvider()" style="font-size:0.75rem;">＋ 新增</button>
+          ${!isActive && modelIds.length ? `<button class="btn-sm btn-sm-save" onclick="setOcDefaultModel('${escName}','${escapeHtml(modelIds[0]).replace(/'/g,"\\'")}')" style="font-size:0.75rem;">设默认</button>` : ''}
+          <button class="btn-sm btn-sm-cancel" onclick="ocDeleteProvider('${escName}')" style="font-size:0.75rem;color:var(--accent-red);border-color:var(--accent-red);">🗑 删除</button>
+        </div>
+      </div>
+    `;
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+function renderOcQqbot(cfgData) {
+  const cfg = cfgData?.config || {};
+  const qq = cfg.channels?.qqbot || {};
+  const appId = document.getElementById('ocQqAppId');
+  const secret = document.getElementById('ocQqSecret');
+  const enabled = document.getElementById('ocQqEnabled');
+  if (appId) appId.value = qq.appId || '';
+  if (secret) secret.placeholder = qq._hasSecret ? '已配置（填写新值可更新）' : '未配置';
+  if (enabled) enabled.checked = qq.enabled !== false;
+}
+
+function renderOcLogs(logData) {
+  const el = $('#ocLogs');
+  if (!el) return;
+  const logs = logData?.logs || [];
+  if (logs.length > 0) {
+    el.textContent = logs.filter(l => l.trim()).join('\n');
+  } else {
+    el.textContent = logData?.error ? '日志读取失败: ' + logData.error : '暂无日志';
+  }
+}
+
+async function ocSaveConfig() {
+  const msg = $('#ocActionMsg');
+  if (msg) msg.textContent = '保存中...';
+
+  const port = parseInt(document.getElementById('ocPort')?.value || '18789');
+  const mode = document.getElementById('ocMode')?.value || 'local';
+  const agentModel = document.getElementById('ocAgentModel')?.value || '';
+  const qqAppId = document.getElementById('ocQqAppId')?.value || '';
+  const qqSecret = document.getElementById('ocQqSecret')?.value || '';
+  const qqEnabled = document.getElementById('ocQqEnabled')?.checked ?? true;
+
+  const body = {};
+  body.gateway = { mode, port };
+  body.agents = { defaults: { model: agentModel } };
+  body.channels = { qqbot: { enabled: qqEnabled, appId: qqAppId } };
+  if (qqSecret) {
+    body.channels.qqbot.clientSecret = qqSecret;
+  }
+
+  try {
+    const resp = await fetch(API_BASE + '/openclaw/config', {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await resp.json();
+    if (data.status === 'ok') {
+      if (msg) msg.textContent = '✅ 保存成功！';
+      showToast('✅ OpenClaw 配置已保存', 'success');
+      loadOpenClaw();
+    } else {
+      if (msg) msg.textContent = '❌ ' + (data.error || '保存失败');
+    }
+  } catch (err) {
+    if (msg) msg.textContent = '❌ ' + err.message;
+    showToast('❌ 保存失败: ' + err.message, 'error');
+  }
+}
+
+async function ocRestartGateway() {
+  if (!confirm('确认重启 OpenClaw Gateway？')) return;
+  const msg = $('#ocActionMsg');
+  if (msg) msg.textContent = '🔄 重启中...';
+  try {
+    const resp = await fetch(API_BASE + '/openclaw/restart', { method: 'POST' });
+    const data = await resp.json();
+    if (data.status === 'ok') {
+      if (msg) msg.textContent = '✅ ' + (data.message || '重启中');
+      showToast('✅ OpenClaw 重启中', 'success');
+      setTimeout(() => loadOpenClaw(), 3000);
+    } else {
+      if (msg) msg.textContent = '❌ ' + (data.error || '重启失败');
+    }
+  } catch (err) {
+    if (msg) msg.textContent = '❌ ' + err.message;
+    showToast('❌ 重启失败: ' + err.message, 'error');
+  }
+}
+
+async function ocStopGateway() {
+  if (!confirm('确认停止 OpenClaw Gateway？')) return;
+  const msg = $('#ocActionMsg');
+  if (msg) msg.textContent = '⏹ 停止中...';
+  try {
+    const resp = await fetch(API_BASE + '/openclaw/stop', { method: 'POST' });
+    const data = await resp.json();
+    if (data.status === 'ok') {
+      if (msg) msg.textContent = '⏹ 已停止';
+      showToast('⏹ OpenClaw 已停止', 'success');
+      loadOpenClaw();
+    } else {
+      if (msg) msg.textContent = '❌ ' + (data.error || '停止失败');
+    }
+  } catch (err) {
+    if (msg) msg.textContent = '❌ ' + err.message;
+    showToast('❌ 停止失败: ' + err.message, 'error');
+  }
+}
+
+async function ocRefreshLogs() {
+  try {
+    const data = await fetchAPI('/openclaw/logs?lines=50');
+    renderOcLogs(data);
+  } catch (err) {
+    showToast('❌ 读取日志失败: ' + err.message, 'error');
+  }
+}
+
+const OC_KNOWN_PROVIDERS = {
+  myproxy: { url: 'https://sub.zmjjkkk.fun/v1', model: 'gpt-5.5' },
+  deepseek: { url: 'https://api.deepseek.com/v1', model: 'deepseek-v4-pro' },
+  openai: { url: 'https://api.openai.com/v1', model: 'gpt-4o' },
+  openrouter: { url: 'https://openrouter.ai/api/v1', model: 'openai/gpt-4o' }
+};
+
+function onOcProviderSelect(val) {
+  const customRow = $('#ocCustomNameRow');
+  const urlInput = $('#ocModalUrl');
+  const modelsInput = $('#ocModalModels');
+  if (val === 'custom') {
+    customRow.style.display = 'flex';
+    urlInput.value = '';
+    modelsInput.value = '';
+  } else {
+    customRow.style.display = 'none';
+    if (OC_KNOWN_PROVIDERS[val]) {
+      urlInput.value = OC_KNOWN_PROVIDERS[val].url;
+      if (!modelsInput.value.trim()) modelsInput.value = OC_KNOWN_PROVIDERS[val].model;
+    }
+  }
+}
+
+function toggleOcKeyVisibility() {
+  const inp = $('#ocModalKey');
+  const btn = $('#ocKeyToggleBtn');
+  if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
+  else { inp.type = 'password'; btn.textContent = '👁'; }
+}
+
+function getOcModalProviderName() {
+  const selected = $('#ocModalName').value;
+  return selected === 'custom' ? $('#ocModalCustomName').value.trim() : selected;
+}
+
+function showOcAddProvider() {
+  $('#ocModalTitle').textContent = '新增 OpenClaw Provider';
+  $('#ocModalEditName').value = '';
+  $('#ocModalName').disabled = false;
+  $('#ocModalName').value = '';
+  $('#ocCustomNameRow').style.display = 'none';
+  $('#ocModalCustomName').value = '';
+  $('#ocModalKey').value = '';
+  $('#ocModalKey').placeholder = 'sk-...';
+  $('#ocModalUrl').value = '';
+  $('#ocModalApi').value = 'openai-completions';
+  $('#ocModalModels').value = '';
+  $('#ocModalSaveBtn').textContent = '💾 保存';
+  $('#ocProviderModal').style.display = 'flex';
+}
+
+function showOcEditProvider(name) {
+  const p = ocProvidersCache[name];
+  if (!p) return;
+  $('#ocModalTitle').textContent = '编辑 OpenClaw Provider: ' + name;
+  $('#ocModalEditName').value = name;
+  $('#ocModalName').disabled = true;
+  if (OC_KNOWN_PROVIDERS[name]) {
+    $('#ocModalName').value = name;
+    $('#ocCustomNameRow').style.display = 'none';
+  } else {
+    $('#ocModalName').value = 'custom';
+    $('#ocCustomNameRow').style.display = 'flex';
+    $('#ocModalCustomName').value = name;
+  }
+  $('#ocModalKey').value = '';
+  $('#ocModalKey').placeholder = p._hasKey ? '已配置（填写新值才会更新）' : '未配置';
+  $('#ocModalUrl').value = p.baseUrl || p.base_url || '';
+  $('#ocModalApi').value = p.api || 'openai-completions';
+  $('#ocModalModels').value = (p.models || []).map(normalizeModelId).filter(Boolean).join('\n');
+  $('#ocModalSaveBtn').textContent = '💾 更新';
+  $('#ocProviderModal').style.display = 'flex';
+}
+
+function hideOcProviderModal() {
+  $('#ocProviderModal').style.display = 'none';
+}
+
+async function saveOcProvider() {
+  const editName = $('#ocModalEditName').value.trim();
+  const name = getOcModalProviderName();
+  const key = $('#ocModalKey').value.trim();
+  const url = $('#ocModalUrl').value.trim();
+  const api = $('#ocModalApi').value || 'openai-completions';
+  const modelIds = $('#ocModalModels').value.split(/\n|,/).map(s => s.trim()).filter(Boolean);
+  if (!name) { showToast('请选择或输入 OpenClaw Provider', 'error'); return; }
+  if (!url) { showToast('请填写 Base URL', 'error'); return; }
+  if (!modelIds.length) { showToast('至少填写一个模型 ID', 'error'); return; }
+
+  const btn = $('#ocModalSaveBtn');
+  setButtonLoading(btn, true, '保存中');
+  try {
+    const resp = await fetch(API_BASE + '/openclaw/config');
+    const data = await resp.json();
+    const fullCfg = data.config || {};
+    if (!fullCfg.models) fullCfg.models = { providers: {} };
+    if (!fullCfg.models.providers) fullCfg.models.providers = {};
+    const existing = editName ? (fullCfg.models.providers[editName] || {}) : {};
+    const targetName = editName || name;
+    fullCfg.models.providers[targetName] = {
+      ...existing,
+      api,
+      baseUrl: url,
+      models: modelIds.map(m => ({ id: m, name: m }))
+    };
+    if (key) fullCfg.models.providers[targetName].apiKey = key;
+
+    const resp2 = await fetch(API_BASE + '/openclaw/config', {
+      method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ models: fullCfg.models })
+    });
+    const res2 = await resp2.json();
+    if (res2.status !== 'ok') throw new Error(res2.error || '保存失败');
+    showToast(editName ? '✅ OpenClaw Provider 已更新' : '✅ OpenClaw Provider 已新增', 'success');
+    hideOcProviderModal();
+    loadOpenClaw();
+    loadAgentsConsole({manual:false});
+  } catch (err) {
+    showToast('❌ 保存失败: ' + err.message, 'error');
+  } finally {
+    setButtonLoading(btn, false);
+  }
+}
+
+async function testOcProvider(name) {
+  try {
+    showToast('⏳ 正在检测 OpenClaw Provider 模型：' + name, 'info');
+    const resp = await fetch(API_BASE + '/openclaw/config/providers/' + encodeURIComponent(name) + '/test', { method: 'POST' });
+    const data = await resp.json();
+    if (!resp.ok || !data.connected) throw new Error(data.error || ('HTTP ' + resp.status));
+    const count = data.models_count ?? (data.models || []).length ?? 0;
+    showToast('✅ ' + name + ' 可用模型：' + count + ' 个', 'success');
+    await loadOpenClaw();
+  } catch (err) {
+    showToast('❌ 检测失败: ' + err.message, 'error');
+  }
+}
+
+async function setOcDefaultModel(providerName, modelId) {
+  const value = providerName + '/' + modelId;
+  const input = document.getElementById('ocAgentModel');
+  if (input) input.value = value;
+  const preview = document.getElementById('ocCurrentModelPreview');
+  if (preview) preview.innerHTML = '<div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:6px;">待保存默认模型</div>' + renderModelDisplay(value, '', { active: true });
+  document.querySelectorAll('input[name="oc-model-default"]').forEach(radio => {
+    const option = radio.closest('.model-option');
+    if (!option) return;
+    const active = radio.checked;
+    option.classList.toggle('active', active);
+    option.classList.toggle('dimmed', !active);
+    let mark = option.querySelector('.model-option-mark');
+    if (active && !mark) {
+      mark = document.createElement('span');
+      mark.className = 'model-option-mark';
+      mark.textContent = '✓';
+      option.appendChild(mark);
+    } else if (!active && mark) {
+      mark.remove();
+    }
+  });
+  showToast('✅ 已选择默认模型：' + value + '，点击“保存配置”后生效', 'success');
+}
+
+async function ocDeleteProvider(name) {
+  if (!confirm('确认删除 OpenClaw Provider「' + name + '」？\n\n如果它是当前默认模型，请先切换默认模型。')) return;
+  try {
+    const resp = await fetch(API_BASE + '/openclaw/config');
+    const data = await resp.json();
+    const fullCfg = data.config || {};
+    if (fullCfg.models?.providers?.[name]) {
+      delete fullCfg.models.providers[name];
+    }
+    const resp2 = await fetch(API_BASE + '/openclaw/config', {
+      method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ models: fullCfg.models })
+    });
+    const res2 = await resp2.json();
+    if (res2.status !== 'ok') throw new Error(res2.error || '删除失败');
+    showToast('✅ Provider ' + name + ' 已删除', 'success');
+    loadOpenClaw();
+    loadAgentsConsole({manual:false});
+  } catch (err) {
+    showToast('❌ 删除失败: ' + err.message, 'error');
+  }
+}
+// ===== INIT =====
+window.addEventListener('hashchange', () => {
+  const tab = getInitialTab();
+  if (tab !== currentTab) switchTab(tab, { replaceHistory: true });
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Wait for first paint to ensure DOM layout is complete before init
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      // Load initial tab from URL hash / last selection, so refresh stays on the same page
+      const initialTab = getInitialTab();
+      switchTab(initialTab, { replaceHistory: true });
+      lastRefreshTime = Date.now();
+
+      // Start refresh indicator
+      startRefreshIndicator();
+      updateRefreshIndicator();
+    });
+  });
+
+  // Auto-refresh header status every 30s (independent of tab refresh)
+  setInterval(async () => {
+    try {
+      const status = await fetchAPI('/status');
+      updateHeaderStatus(status);
+    } catch (e) { /* silent */ }
+  }, 30000);
+
+  document.querySelectorAll('.time-range-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.time-range-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentDays = parseInt(btn.dataset.days || '7', 10);
+      refreshCurrentTab();
+    });
+  });
+
+  const ocModal = document.getElementById('ocProviderModal');
+  if (ocModal) {
+    ocModal.addEventListener('click', (e) => {
+      if (e.target === ocModal) hideOcProviderModal();
+    });
+  }
+
+  // Manual refresh button
+  const btnRefresh = document.getElementById('btnRefresh');
+  if (btnRefresh) {
+    btnRefresh.addEventListener('click', () => {
+      refreshCurrentTab();
+      // Brief spin animation
+      btnRefresh.style.transition = 'transform 0.3s ease';
+      btnRefresh.style.transform = 'rotate(360deg)';
+      setTimeout(() => {
+        btnRefresh.style.transform = '';
+      }, 300);
+    });
+  }
+});
+
+// Handle responsive chart resize with debounce
+let resizeTimeout;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(() => {
+    $$('.chart-container').forEach(dom => {
+      const inst = echarts.getInstanceByDom(dom);
+      if (inst && inst.resize) inst.resize();
+    });
+  }, 150);
+});
+</script>
+
+</body>
+</html>

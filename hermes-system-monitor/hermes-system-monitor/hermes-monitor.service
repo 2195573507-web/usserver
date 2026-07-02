@@ -1,0 +1,17 @@
+[Unit]
+Description=Hermes System Monitor Dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/hermes-system-monitor
+ExecStart=/opt/hermes-agent/.venv/bin/python3 /opt/hermes-system-monitor/main.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

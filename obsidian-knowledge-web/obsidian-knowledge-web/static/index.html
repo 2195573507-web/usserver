@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>服务器 Obsidian 知识库</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css">
+<style>
+:root{--bg:#0d1117;--bg2:#161b22;--card:#1c2333;--hover:#222b3d;--border:#30363d;--text:#e6edf3;--text2:#8b949e;--muted:#6e7681;--blue:#58a6ff;--green:#3fb950;--orange:#db6d28;--purple:#a371f7;--red:#f85149;--yellow:#d2991d;--shadow:0 8px 28px rgba(0,0,0,.35);--mono:'SF Mono','Cascadia Code','JetBrains Mono',monospace;--sans:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans SC',sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+.top{position:sticky;top:0;z-index:20;background:rgba(22,27,34,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:14px 22px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.12rem}
+.brand span:first-child{font-size:1.4rem}
+.status{font-size:.78rem;color:var(--text2);font-family:var(--mono)}
+.main{max-width:1500px;margin:0 auto;padding:18px 22px 36px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.toolbar input,.toolbar select{background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:9px 12px;font-family:var(--sans);min-width:0}
+.toolbar input{flex:1;min-width:220px}
+.btn{background:var(--blue);border:1px solid var(--blue);color:white;border-radius:9px;padding:9px 14px;cursor:pointer;font-weight:600;transition:.18s}
+.btn:hover{opacity:.85}
+.btn.secondary{background:var(--bg2);color:var(--text);border-color:var(--border)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--blue);border-radius:13px;padding:15px 16px;box-shadow:var(--shadow);overflow:hidden}
+.kpi:nth-child(2){border-left-color:var(--green)}
+.kpi:nth-child(3){border-left-color:var(--purple)}
+.kpi:nth-child(4){border-left-color:var(--orange)}
+.kpi .label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+.kpi .value{font-size:1.5rem;font-weight:800;margin-top:4px;font-family:var(--mono);overflow-wrap:anywhere}
+.layout{display:grid;grid-template-columns:minmax(300px,390px) 1fr;gap:16px;align-items:start}
+.card{background:var(--card);border:1px solid var(--border);border-radius:13px;box-shadow:var(--shadow);overflow:hidden}
+.card-h{padding:13px 16px;border-bottom:1px solid #222936;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.card-b{padding:14px 16px}
+.list{display:flex;flex-direction:column;gap:8px;max-height:720px;overflow:auto}
+.item{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;cursor:pointer;transition:.18s}
+.item:hover,.item.active{background:var(--hover);border-color:var(--blue)}
+.item-title{font-size:.88rem;font-weight:700;margin-bottom:5px;overflow-wrap:anywhere;display:flex;align-items:center;gap:6px}
+.item-meta{font-family:var(--mono);font-size:.68rem;color:var(--muted);overflow-wrap:anywhere;display:flex;gap:8px;flex-wrap:wrap}
+.item-preview{font-size:.73rem;color:var(--text2);margin-top:6px;line-height:1.45;overflow-wrap:anywhere}
+.tag{display:inline-block;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-size:.65rem;color:var(--text2);cursor:pointer;transition:.18s}
+.tag:hover{background:var(--blue);color:white;border-color:var(--blue)}
+.graph{height:460px;width:100%;min-height:300px}
+.preview{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:18px;overflow:auto;max-height:640px}
+.preview h1,.preview h2,.preview h3,.preview h4,.preview h5,.preview h6{margin-top:1.4em;margin-bottom:.6em;font-weight:700;line-height:1.3}
+.preview h1{font-size:1.8em;border-bottom:2px solid var(--border);padding-bottom:.3em}
+.preview h2{font-size:1.4em;border-bottom:1px solid var(--border);padding-bottom:.2em}
+.preview h3{font-size:1.15em}
+.preview p{margin-bottom:1em;line-height:1.7}
+.preview a{color:var(--blue);text-decoration:none}
+.preview a:hover{text-decoration:underline}
+.preview code{background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:2px 6px;font-family:var(--mono);font-size:.85em}
+.preview pre{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px;overflow-x:auto;margin:1em 0}
+.preview pre code{background:none;border:none;padding:0}
+.preview ul,.preview ol{margin:1em 0;padding-left:2em}
+.preview li{margin:.4em 0;line-height:1.6}
+.preview blockquote{border-left:4px solid var(--blue);padding-left:1em;margin:1em 0;color:var(--text2)}
+.preview table{border-collapse:collapse;margin:1em 0;width:100%}
+.preview th,.preview td{border:1px solid var(--border);padding:8px 12px;text-align:left}
+.preview th{background:var(--bg2);font-weight:700}
+.preview hr{border:none;border-top:2px solid var(--border);margin:2em 0}
+.preview img{max-width:100%;height:auto;border-radius:8px;margin:1em 0}
+.breadcrumb{font-size:.75rem;color:var(--muted);font-family:var(--mono);margin-bottom:12px;display:flex;gap:6px;flex-wrap:wrap}
+.breadcrumb a{color:var(--blue);text-decoration:none;cursor:pointer}
+.breadcrumb a:hover{text-decoration:underline}
+.toc{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px;max-height:300px;overflow:auto}
+.toc h4{margin-bottom:8px;font-size:.85rem;color:var(--text2)}
+.toc ul{list-style:none;padding-left:0}
+.toc li{margin:4px 0}
+.toc a{color:var(--text2);text-decoration:none;font-size:.8rem;display:block;padding:3px 0;transition:.18s}
+.toc a:hover{color:var(--blue);padding-left:4px}
+.toc a.active{color:var(--blue);font-weight:600}
+.toc .h2{padding-left:12px}
+.toc .h3{padding-left:24px}
+.toc .h4{padding-left:36px}
+.frontmatter{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px;font-size:.82rem}
+.frontmatter h4{margin-bottom:8px;font-size:.85rem;color:var(--text2)}
+.frontmatter-row{display:flex;gap:8px;margin:4px 0;flex-wrap:wrap}
+.frontmatter-key{color:var(--muted);font-family:var(--mono);min-width:80px}
+.frontmatter-val{color:var(--text);flex:1}
+.path{font-size:.72rem;color:var(--muted);font-family:var(--mono);overflow-wrap:anywhere}
+.empty{color:var(--muted);text-align:center;padding:30px 12px}
+.split{display:flex;flex-direction:column;gap:16px}
+.wiki-link{color:var(--purple);cursor:pointer;text-decoration:none;border-bottom:1px dashed var(--purple)}
+.wiki-link:hover{background:var(--purple);color:white}
+.updated-badge{background:var(--green);color:white;font-size:.6rem;padding:2px 6px;border-radius:4px;margin-left:6px}
+@media(max-width:980px){.layout{grid-template-columns:1fr}.list{max-height:380px}.kpis{grid-template-columns:repeat(2,1fr)}.graph{height:340px}}
+@media(max-width:520px){.top{padding:12px}.main{padding:12px}.kpis{grid-template-columns:1fr}.toolbar{gap:8px}.toolbar input,.toolbar select,.btn{width:100%}.graph{height:300px}.preview{padding:12px}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span>🕸️</span><span>服务器 Obsidian 知识库</span></div>
+  <div class="status" id="statusText">加载中...</div>
+</header>
+<main class="main">
+  <div class="toolbar">
+    <input id="search" placeholder="搜索文件名 / 标题 / 内容 / 标签..." oninput="debouncedLoad()">
+    <select id="category" onchange="loadFiles()"><option value="">全部分类</option></select>
+    <select id="tagFilter" onchange="loadFiles()"><option value="">全部标签</option></select>
+    <button class="btn" onclick="loadAll()">刷新</button>
+    <button class="btn secondary" onclick="loadGraph()">刷新图谱</button>
+  </div>
+  <section class="kpis">
+    <div class="kpi"><div class="label">Vault</div><div class="value" id="vaultPath">--</div></div>
+    <div class="kpi"><div class="label">Markdown</div><div class="value" id="fileCount">--</div></div>
+    <div class="kpi"><div class="label">Graph Nodes</div><div class="value" id="nodeCount">--</div></div>
+    <div class="kpi"><div class="label">Graph Links</div><div class="value" id="linkCount">--</div></div>
+  </section>
+  <section class="layout">
+    <div class="card">
+      <div class="card-h"><span>📄 文件列表</span><span class="path" id="listCount">--</span></div>
+      <div class="card-b"><div class="list" id="fileList"><div class="empty">加载中...</div></div></div>
+    </div>
+    <div class="split">
+      <div class="card">
+        <div class="card-h"><span>🕸️ 知识图谱</span><span class="path">拖拽 / 缩放 / 悬停查看</span></div>
+        <div class="card-b"><div class="graph" id="graph"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span>👁️ 文件预览</span><span class="path" id="fileTitle">请选择文件</span></div>
+        <div class="card-b">
+          <div id="breadcrumb" class="breadcrumb"></div>
+          <div id="frontmatter"></div>
+          <div id="toc"></div>
+          <div class="preview" id="preview">选择左侧文件查看内容。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<script>
+const API='';
+let filesCache=[];
+let graphChart=null;
+let timer=null;
+let currentFile=null;
+
+function $(id){return document.getElementById(id)}
+function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
+
+async function api(path){
+  const r=await fetch(API+path);
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  return r.json();
+}
+
+function debouncedLoad(){
+  clearTimeout(timer);
+  timer=setTimeout(loadFiles,300);
+}
+
+async function loadStatus(){
+  const d=await api('/api/status');
+  $('statusText').textContent=(d.exists?'在线':'未找到')+' · '+d.files_count+' 文件';
+  $('vaultPath').textContent=d.vault||'--';
+}
+
+async function loadFiles(){
+  const q=encodeURIComponent($('search').value||'');
+  const c=encodeURIComponent($('category').value||'');
+  const d=await api('/api/files?limit=500&q='+q+'&category='+c);
+  filesCache=d.files||[];
+  $('fileCount').textContent=d.count||0;
+  $('listCount').textContent='显示 '+filesCache.length+' / '+(d.count||0);
+  $('vaultPath').textContent=d.vault||'--';
+  
+  const sel=$('category');
+  if(!sel.dataset.loaded){
+    (d.categories||[]).forEach(cat=>{
+      const o=document.createElement('option');
+      o.value=cat;
+      o.textContent=cat;
+      sel.appendChild(o);
+    });
+    sel.dataset.loaded='1';
+  }
+  
+  // Collect all tags
+  const allTags=new Set();
+  filesCache.forEach(f=>{
+    if(f.tags)f.tags.forEach(t=>allTags.add(t));
+  });
+  const tagSel=$('tagFilter');
+  if(!tagSel.dataset.loaded){
+    [...allTags].sort().forEach(tag=>{
+      const o=document.createElement('option');
+      o.value=tag;
+      o.textContent=tag;
+      tagSel.appendChild(o);
+    });
+    tagSel.dataset.loaded='1';
+  }
+  
+  // Filter by tag if selected
+  const tagFilter=$('tagFilter').value;
+  let filtered=filesCache;
+  if(tagFilter){
+    filtered=filesCache.filter(f=>f.tags&&f.tags.includes(tagFilter));
+  }
+  
+  renderFiles(filtered);
+}
+
+function renderFiles(files){
+  const list=$('fileList');
+  if(!files.length){
+    list.innerHTML='<div class="empty">没有匹配文件</div>';
+    return;
+  }
+  
+  const now=Date.now();
+  const oneDay=24*60*60*1000;
+  
+  list.innerHTML=files.map(f=>{
+    const isNew=(now-f.mtime*1000)<oneDay*3;
+    const tags=f.tags?f.tags.map(t=>`<span class="tag" onclick="filterByTag('${esc(t)}')">${esc(t)}</span>`).join(''):'';
+    return `<div class="item" onclick="openFile('${encodeURIComponent(f.path)}',this)">
+      <div class="item-title">
+        ${esc(f.title||f.path)}
+        ${isNew?'<span class="updated-badge">NEW</span>':''}
+      </div>
+      <div class="item-meta">
+        <span>${esc(f.category)}</span>
+        <span>${Math.round((f.bytes||0)/1024)} KB</span>
+        ${tags}
+      </div>
+      <div class="item-preview">${esc((f.preview||'').slice(0,150))}</div>
+    </div>`;
+  }).join('');
+}
+
+function filterByTag(tag){
+  $('tagFilter').value=tag;
+  loadFiles();
+}
+
+async function openFile(path,el){
+  document.querySelectorAll('.item').forEach(x=>x.classList.remove('active'));
+  if(el)el.classList.add('active');
+  
+  try{
+    const d=await api('/api/file?path='+path);
+    currentFile=d;
+    $('fileTitle').textContent=d.file?.path||'';
+    
+    // Breadcrumb
+    const parts=(d.file?.path||'').split('/');
+    const breadcrumb=$('breadcrumb');
+    breadcrumb.innerHTML=parts.map((p,i)=>{
+      if(i===parts.length-1)return `<span>${esc(p)}</span>`;
+      return `<a onclick="navigateTo('${esc(parts.slice(0,i+1).join('/'))}')">${esc(p)}</a>`;
+    }).join(' <span>/</span> ');
+    
+    // Frontmatter
+    const fm=$('frontmatter');
+    if(d.file?.frontmatter&&Object.keys(d.file.frontmatter).length>0){
+      const rows=Object.entries(d.file.frontmatter).map(([k,v])=>{
+        let val=v;
+        if(Array.isArray(v))val=v.map(t=>`<span class="tag">${esc(t)}</span>`).join(' ');
+        return `<div class="frontmatter-row"><span class="frontmatter-key">${esc(k)}:</span><span class="frontmatter-val">${val}</span></div>`;
+      }).join('');
+      fm.innerHTML=`<div class="frontmatter"><h4>📋 Frontmatter</h4>${rows}</div>`;
+    }else{
+      fm.innerHTML='';
+    }
+    
+    // Render markdown
+    const content=d.content||'';
+    const html=renderMarkdown(content);
+    $('preview').innerHTML=html;
+    
+    // Generate TOC
+    generateTOC();
+    
+    // Highlight code
+    $('preview').querySelectorAll('pre code').forEach(block=>{
+      hljs.highlightElement(block);
+    });
+    
+    // Make wikilinks clickable
+    $('preview').querySelectorAll('a.wiki-link').forEach(link=>{
+      link.onclick=(e)=>{
+        e.preventDefault();
+        const target=link.getAttribute('data-target');
+        navigateTo(target);
+      };
+    });
+    
+  }catch(e){
+    $('preview').innerHTML='<div class="empty">读取失败：'+esc(e.message)+'</div>';
+  }
+}
+
+function renderMarkdown(md){
+  // Parse frontmatter
+  const fmMatch=md.match(/^---\n([\s\S]*?)\n---\n/);
+  if(fmMatch)md=md.replace(fmMatch[0],'');
+  
+  // Configure marked
+  marked.setOptions({
+    breaks:true,
+    gfm:true,
+    headerIds:true
+  });
+  
+  // Custom renderer for wikilinks
+  const renderer=new marked.Renderer();
+  const originalLink=renderer.link;
+  renderer.link=(href,title,text)=>{
+    // Check if it's a wikilink pattern
+    if(href&&href.includes('[[')){
+      return `<a class="wiki-link" data-target="${esc(href)}">${esc(text)}</a>`;
+    }
+    return originalLink(href,title,text);
+  };
+  
+  let html=marked.parse(md,{renderer});
+  
+  // Convert [[wikilinks]] to clickable links
+  html=html.replace(/\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]/g,(match,target,display)=>{
+    const text=display||target;
+    return `<a class="wiki-link" data-target="${esc(target)}">${esc(text)}</a>`;
+  });
+  
+  return html;
+}
+
+function generateTOC(){
+  const preview=$('preview');
+  const headers=preview.querySelectorAll('h1,h2,h3,h4');
+  const toc=$('toc');
+  
+  if(headers.length<2){
+    toc.innerHTML='';
+    return;
+  }
+  
+  const items=[...headers].map((h,i)=>{
+    const level=h.tagName.toLowerCase();
+    const id='heading-'+i;
+    h.id=id;
+    const text=h.textContent;
+    return `<li><a class="${level}" href="#${id}" onclick="scrollToHeading('${id}')">${esc(text)}</a></li>`;
+  }).join('');
+  
+  toc.innerHTML=`<div class="toc"><h4>📑 目录</h4><ul>${items}</ul></div>`;
+}
+
+function scrollToHeading(id){
+  const el=document.getElementById(id);
+  if(el){
+    el.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+}
+
+async function navigateTo(path){
+  // Find file by path
+  const file=filesCache.find(f=>f.path===path||f.path.startsWith(path));
+  if(file){
+    openFile(encodeURIComponent(file.path),null);
+  }else{
+    // Try to load it
+    try{
+      await openFile(encodeURIComponent(path),null);
+    }catch(e){
+      console.error('Navigation failed:',e);
+    }
+  }
+}
+
+async function loadGraph(){
+  const d=await api('/api/graph?limit=900');
+  $('nodeCount').textContent=(d.nodes||[]).length;
+  $('linkCount').textContent=(d.links||[]).length;
+  
+  const dom=$('graph');
+  if(!graphChart)graphChart=echarts.init(dom,'dark');
+  
+  const cats=d.categories||[];
+  const palette=['#3fb950','#58a6ff','#a371f7','#db6d28','#d2991d','#39d2c0','#f85149','#8b949e'];
+  const idx=Object.fromEntries(cats.map((c,i)=>[c,i]));
+  
+  const nodes=(d.nodes||[]).map(n=>({
+    ...n,
+    category:idx[n.category]||0,
+    itemStyle:{color:palette[(idx[n.category]||0)%palette.length]}
+  }));
+  
+  graphChart.setOption({
+    backgroundColor:'transparent',
+    tooltip:{
+      trigger:'item',
+      formatter:p=>p.dataType==='node'?`<strong>${p.name}</strong><br/>${p.data.category}`:p.data.source+' → '+p.data.target
+    },
+    legend:[{
+      data:cats,
+      textStyle:{color:'#8b949e',fontSize:11},
+      top:10,
+      type:'scroll'
+    }],
+    series:[{
+      type:'graph',
+      layout:'force',
+      roam:true,
+      draggable:true,
+      categories:cats.map(name=>({name})),
+      data:nodes,
+      links:d.links||[],
+      label:{show:false},
+      force:{repulsion:120,edgeLength:60,gravity:.1},
+      lineStyle:{color:'source',opacity:.35,width:1.5},
+      emphasis:{
+        focus:'adjacency',
+        lineStyle:{width:3}
+      }
+    }]
+  });
+  
+  setTimeout(()=>graphChart.resize(),50);
+  
+  // Click node to open file
+  graphChart.on('click',params=>{
+    if(params.dataType==='node'){
+      navigateTo(params.data.id);
+    }
+  });
+}
+
+async function loadAll(){
+  try{
+    await loadStatus();
+    await loadFiles();
+    await loadGraph();
+  }catch(e){
+    $('statusText').textContent='加载失败：'+e.message;
+  }
+}
+
+document.addEventListener('DOMContentLoaded',loadAll);
+window.addEventListener('resize',()=>{
+  if(graphChart)graphChart.resize();
+});
+setInterval(loadStatus,60000);
+
+// Keyboard shortcuts
+document.addEventListener('keydown',e=>{
+  if(e.ctrlKey||e.metaKey){
+    if(e.key==='/'){
+      e.preventDefault();
+      $('search').focus();
+    }
+  }
+  if(e.key==='Escape'){
+    $('search').blur();
+  }
+});
+</script>
+</body>
+</html>

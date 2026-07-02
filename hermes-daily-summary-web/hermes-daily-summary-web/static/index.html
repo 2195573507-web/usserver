@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Hermes 每日总结</title>
+<style>
+:root{--bg:#0d1117;--panel:#161b22;--card:#1c2333;--text:#e6edf3;--muted:#8b949e;--line:#30363d;--blue:#58a6ff;--green:#3fb950;--yellow:#d29922;--red:#f85149;--shadow:0 12px 40px rgba(0,0,0,.28)}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top left,rgba(88,166,255,.12),transparent 38%),var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;min-height:100vh}.top{position:sticky;top:0;z-index:10;background:rgba(13,17,23,.86);backdrop-filter:blur(16px);border-bottom:1px solid var(--line);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}.brand{display:flex;align-items:center;gap:10px;font-weight:800}.logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--blue),#8b5cf6);display:grid;place-items:center;box-shadow:var(--shadow)}.meta{font-size:12px;color:var(--muted)}.wrap{max-width:1440px;margin:0 auto;padding:18px;display:grid;grid-template-columns:360px minmax(0,1fr);gap:16px}.panel{background:rgba(22,27,34,.86);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);min-width:0}.side{overflow:hidden}.search{padding:14px;border-bottom:1px solid var(--line);display:flex;gap:8px}.search input{flex:1;min-width:0;background:#0d1117;border:1px solid var(--line);border-radius:10px;color:var(--text);padding:11px 12px;font:inherit}.btn{background:#21262d;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:10px 12px;cursor:pointer;font:inherit;min-height:42px}.btn:hover{border-color:var(--blue);color:var(--blue)}.list{max-height:calc(100vh - 145px);overflow:auto;-webkit-overflow-scrolling:touch;padding:8px}.item{padding:13px;border:1px solid transparent;border-radius:12px;cursor:pointer;margin-bottom:8px;background:rgba(255,255,255,.02)}.item:hover{border-color:rgba(88,166,255,.45);background:rgba(88,166,255,.08)}.item.on{border-color:var(--blue);background:rgba(88,166,255,.14)}.item .date{font-weight:800;color:var(--blue);font-size:14px}.item .title{font-size:13px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.item .excerpt{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.empty{padding:30px;text-align:center;color:var(--muted)}.main{min-height:calc(100vh - 98px);overflow:hidden}.doc-head{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.doc-title{font-size:22px;font-weight:900;margin-bottom:6px}.doc-sub{font-size:12px;color:var(--muted)}.actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.content{padding:24px;overflow:auto;max-height:calc(100vh - 190px);line-height:1.76}.content h1,.content h2,.content h3{line-height:1.35;margin:1.2em 0 .6em}.content h1{font-size:26px;border-bottom:1px solid var(--line);padding-bottom:10px}.content h2{font-size:21px;color:var(--blue)}.content h3{font-size:17px;color:#a5d6ff}.content p{margin:.7em 0}.content ul,.content ol{padding-left:1.5em}.content li{margin:.35em 0}.content blockquote{margin:1em 0;padding:10px 14px;border-left:4px solid var(--blue);background:rgba(88,166,255,.08);color:#c9d1d9}.content code{background:#0d1117;border:1px solid var(--line);border-radius:6px;padding:2px 5px}.content pre{background:#0d1117;border:1px solid var(--line);border-radius:12px;padding:14px;overflow:auto}.content table{border-collapse:collapse;width:100%;display:block;overflow:auto}.content th,.content td{border:1px solid var(--line);padding:8px 10px}.content th{background:#21262d}.loading{padding:40px;color:var(--muted);text-align:center}.toast{position:fixed;left:50%;top:72px;transform:translateX(-50%);background:var(--green);color:#fff;border-radius:999px;padding:10px 18px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.2s;z-index:50}.toast.on{opacity:1}@media(max-width:900px){.wrap{grid-template-columns:1fr;padding:10px}.list{max-height:260px}.content{max-height:none}.doc-head{flex-direction:column}.actions{justify-content:flex-start}.top{padding:12px}}@media(max-width:480px){.brand span:last-child{display:none}.doc-title{font-size:18px}.content{padding:16px}.search{flex-direction:column}.btn{width:100%}}
+</style>
+</head>
+<body>
+<div class="top"><div class="brand"><div class="logo">🧭</div><span>Hermes 每日总结</span></div><div class="meta" id="status">加载中…</div></div>
+<div class="wrap">
+  <aside class="panel side">
+    <div class="search"><input id="q" placeholder="搜索日期、标题、正文摘要…" /><button class="btn" id="refresh">刷新</button></div>
+    <div class="list" id="list"><div class="loading">正在读取总结列表…</div></div>
+  </aside>
+  <main class="panel main">
+    <div class="doc-head">
+      <div><div class="doc-title" id="title">请选择一篇每日总结</div><div class="doc-sub" id="sub">左侧显示 `/root/obsidian-vault/全球咨询调研/00-每日汇总/` 中的 Markdown 文件</div></div>
+      <div class="actions"><button class="btn" id="copy">复制原文</button><button class="btn" id="raw">查看原文</button></div>
+    </div>
+    <article class="content" id="content"><div class="empty">暂无内容</div></article>
+  </main>
+</div>
+<div class="toast" id="toast">已复制</div>
+<script>
+let summaries=[], current=null, currentRaw='';
+const $=id=>document.getElementById(id);
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function toast(msg){$('toast').textContent=msg;$('toast').classList.add('on');setTimeout(()=>$('toast').classList.remove('on'),1600)}
+function md(src){
+  let s=esc(src).replace(/\r\n/g,'\n');
+  s=s.replace(/^### (.*)$/gm,'<h3>$1</h3>').replace(/^## (.*)$/gm,'<h2>$1</h2>').replace(/^# (.*)$/gm,'<h1>$1</h1>');
+  s=s.replace(/```([\s\S]*?)```/g,'<pre><code>$1</code></pre>');
+  s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
+  s=s.replace(/^&gt; (.*)$/gm,'<blockquote>$1</blockquote>');
+  s=s.replace(/^[-*] (.*)$/gm,'<li>$1</li>').replace(/(<li>[\s\S]*?<\/li>\n?)+/g,m=>'<ul>'+m+'</ul>');
+  s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+  s=s.split(/\n{2,}/).map(block=>/^<(h\d|ul|pre|blockquote|table)/.test(block.trim())?block:'<p>'+block.replace(/\n/g,'<br>')+'</p>').join('\n');
+  return s;
+}
+async function api(url){const r=await fetch(url); if(!r.ok) throw new Error('HTTP '+r.status); return r.json()}
+function renderList(){
+  const list=$('list');
+  if(!summaries.length){list.innerHTML='<div class="empty">没有找到每日总结</div>';return}
+  list.innerHTML=summaries.map(x=>`<div class="item ${current&&current.date===x.date?'on':''}" data-date="${esc(x.date)}"><div class="date">${esc(x.date)}</div><div class="title">${esc(x.title)}</div><div class="excerpt">${esc(x.excerpt||'')}</div></div>`).join('');
+  list.querySelectorAll('.item').forEach(el=>el.addEventListener('click',()=>loadDoc(el.dataset.date)));
+}
+async function loadList(){
+  const q=$('q').value.trim();
+  const data=await api('/api/summaries'+(q?'?q='+encodeURIComponent(q):''));
+  summaries=data.items||[];
+  $('status').textContent=`共 ${data.count||0} 篇 · ${new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})}`;
+  renderList();
+  if(!current && summaries[0]) await loadDoc(summaries[0].date);
+}
+async function loadDoc(date){
+  $('content').innerHTML='<div class="loading">正在加载…</div>';
+  const data=await api('/api/summaries/'+encodeURIComponent(date));
+  current=data.summary; currentRaw=current.content||'';
+  $('title').textContent=current.title;
+  $('sub').textContent=`${current.filename} · ${Math.round(current.size/1024*10)/10} KB · 更新 ${current.updated_at}`;
+  $('content').innerHTML=md(currentRaw);
+  renderList();
+}
+$('refresh').addEventListener('click',()=>loadList().catch(e=>toast('刷新失败：'+e.message)));
+$('q').addEventListener('keydown',e=>{if(e.key==='Enter')loadList().catch(err=>toast('搜索失败：'+err.message))});
+$('copy').addEventListener('click',async()=>{if(!currentRaw)return toast('没有内容');await navigator.clipboard.writeText(currentRaw);toast('已复制原文')});
+$('raw').addEventListener('click',()=>{if(!currentRaw)return;const w=window.open('about:blank','_blank');w.document.write('<pre style="white-space:pre-wrap;font:14px/1.6 monospace;padding:20px">'+esc(currentRaw)+'</pre>')});
+document.addEventListener('DOMContentLoaded',()=>loadList().catch(e=>{$('list').innerHTML='<div class="empty">加载失败：'+esc(e.message)+'</div>';$('status').textContent='加载失败'}));
+</script>
+</body>
+</html>

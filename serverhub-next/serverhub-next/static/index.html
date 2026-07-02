@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>ServerHub Next</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #060816;
+      --bg2: #0b1020;
+      --panel: rgba(15, 23, 42, .74);
+      --card: rgba(17, 24, 39, .8);
+      --line: rgba(148, 163, 184, .16);
+      --line2: rgba(148, 163, 184, .28);
+      --text: #eef2ff;
+      --muted: #94a3b8;
+      --accent: #22d3ee;
+      --accent2: #8b5cf6;
+      --good: #34d399;
+      --warn: #fbbf24;
+      --bad: #fb7185;
+      --shadow: 0 20px 70px rgba(0,0,0,.38);
+      --radius: 24px;
+      --tap: 44px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0; min-height: 100vh; color: var(--text);
+      background:
+        radial-gradient(circle at 15% 0%, rgba(34,211,238,.16), transparent 30%),
+        radial-gradient(circle at 90% 8%, rgba(139,92,246,.18), transparent 32%),
+        linear-gradient(180deg, var(--bg), var(--bg2));
+    }
+    a { color: inherit; text-decoration: none; }
+    button, input { font: inherit; }
+    .app { display: grid; grid-template-columns: 290px minmax(0, 1fr); min-height: 100vh; }
+    .side {
+      position: sticky; top: 0; height: 100vh; padding: 18px; border-right: 1px solid var(--line);
+      background: rgba(5, 8, 18, .72); backdrop-filter: blur(18px); display: flex; flex-direction: column; gap: 16px;
+    }
+    .mark {
+      display: flex; gap: 12px; align-items: center; padding: 8px 4px 18px; border-bottom: 1px solid var(--line);
+    }
+    .logo {
+      width: 44px; height: 44px; border-radius: 16px; background: linear-gradient(135deg, var(--accent2), var(--accent));
+      display: grid; place-items: center; box-shadow: 0 16px 40px rgba(34,211,238,.22);
+      font-size: 22px;
+    }
+    .mark h1 { margin: 0; font-size: 18px; letter-spacing: -.04em; }
+    .mark p { margin: 3px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .nav { display: grid; gap: 8px; }
+    .nav button {
+      min-height: var(--tap); border: 1px solid transparent; border-radius: 16px; padding: 0 13px; display: flex; gap: 10px; align-items: center;
+      background: transparent; color: var(--muted); cursor: pointer; text-align: left;
+    }
+    .nav button:hover, .nav button.active { color: var(--text); background: rgba(148,163,184,.1); border-color: var(--line); }
+    .foot { margin-top: auto; border: 1px solid var(--line); border-radius: 18px; padding: 14px; color: var(--muted); font-size: 12px; line-height: 1.65; background: rgba(15,23,42,.48); }
+    .main { min-width: 0; padding: 18px clamp(14px, 3vw, 34px) 42px; }
+    .top {
+      position: sticky; top: 0; z-index: 10; margin: -18px calc(clamp(14px, 3vw, 34px) * -1) 18px; padding: 14px clamp(14px, 3vw, 34px);
+      display: flex; gap: 12px; align-items: center; justify-content: space-between; background: linear-gradient(180deg, rgba(6,8,22,.96), rgba(6,8,22,.66)); backdrop-filter: blur(18px); border-bottom: 1px solid rgba(148,163,184,.08);
+    }
+    .search { position: relative; flex: 1; max-width: 640px; }
+    .search input {
+      width: 100%; min-height: 48px; border: 1px solid var(--line); border-radius: 16px; padding: 0 16px 0 46px; outline: none; color: var(--text); background: rgba(15,23,42,.72);
+    }
+    .search svg { position: absolute; left: 15px; top: 14px; width: 20px; height: 20px; color: var(--muted); }
+    .tools { display: flex; gap: 10px; align-items: center; }
+    .btn {
+      min-height: var(--tap); border: 1px solid var(--line); border-radius: 15px; padding: 0 14px; color: var(--text); background: rgba(15,23,42,.7); cursor: pointer; display: inline-flex; gap: 8px; align-items: center; justify-content: center;
+    }
+    .btn.primary { border-color: rgba(34,211,238,.35); background: linear-gradient(135deg, rgba(139,92,246,.25), rgba(34,211,238,.12)); }
+    .btn:hover { border-color: var(--line2); }
+    .panel, .card, .tile { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); box-shadow: var(--shadow); }
+    .panel { padding: 18px; }
+    .hero { padding: clamp(22px, 4vw, 40px); border: 1px solid rgba(34,211,238,.18); background:
+      linear-gradient(135deg, rgba(139,92,246,.18), rgba(34,211,238,.08) 38%, rgba(15,23,42,.76)), rgba(15,23,42,.68); border-radius: 32px; box-shadow: var(--shadow); }
+    .eyebrow { color: var(--accent); font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    .hero h2 { margin: 12px 0 10px; font-size: clamp(34px, 6vw, 70px); line-height: .92; letter-spacing: -.08em; }
+    .hero p { margin: 0; max-width: 820px; color: #cbd5e1; line-height: 1.75; font-size: 15px; }
+    .hero-actions { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 10px; }
+    .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px; margin: 18px 0 22px; }
+    .metric { padding: 18px; }
+    .metric .k { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
+    .metric .v { margin-top: 8px; font-size: 28px; font-weight: 900; letter-spacing: -.05em; }
+    .metric .s { margin-top: 4px; color: var(--muted); font-size: 13px; }
+    .bar { margin-top: 12px; height: 8px; border-radius: 999px; background: rgba(148,163,184,.12); overflow: hidden; }
+    .bar > span { display:block; height:100%; border-radius: inherit; background: linear-gradient(90deg, var(--good), var(--accent)); width:0; }
+    .head { display:flex; justify-content:space-between; gap:12px; align-items:end; margin: 30px 0 14px; }
+    .head h3 { margin:0; font-size: 22px; letter-spacing: -.04em; }
+    .head p { margin:4px 0 0; color: var(--muted); font-size: 13px; }
+    .grid { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .service { padding: 17px; overflow:hidden; position: relative; }
+    .service::before { content:""; position:absolute; inset:0 0 auto 0; height:3px; background: rgba(148,163,184,.18); }
+    .service.online::before { background: linear-gradient(90deg, var(--good), var(--accent)); }
+    .service.degraded::before { background: linear-gradient(90deg, var(--warn), var(--accent2)); }
+    .service.offline::before { background: linear-gradient(90deg, var(--bad), #f97316); }
+    .row { display:flex; justify-content:space-between; gap:12px; align-items:center; }
+    .svc { display:flex; gap:12px; align-items:flex-start; min-width:0; }
+    .ico { width:42px; height:42px; border-radius:15px; display:grid; place-items:center; background: rgba(148,163,184,.12); font-size:20px; flex:0 0 auto; }
+    .svc h4 { margin:0; font-size: 16px; }
+    .svc p { margin:3px 0 0; color: var(--muted); font-size:12px; }
+    .pill { display:inline-flex; align-items:center; gap:6px; border:1px solid rgba(148,163,184,.16); background: rgba(15,23,42,.46); border-radius:999px; padding:5px 8px; color: var(--muted); font-size: 12px; }
+    .pill.public { color:#bfdbfe; border-color: rgba(96,165,250,.3); }
+    .pill.protected { color:#ddd6fe; border-color: rgba(167,139,250,.3); }
+    .pill.local-only { color:#bbf7d0; border-color: rgba(52,211,153,.3); }
+    .desc { margin: 13px 0; color: #cbd5e1; line-height:1.58; font-size:13px; min-height: 42px; }
+    .meta { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .meta div { border:1px solid rgba(148,163,184,.12); border-radius: 13px; padding:9px; color: var(--muted); font-size:12px; }
+    .actions { margin-top: 14px; display:flex; flex-wrap:wrap; gap:8px; }
+    .section { margin-top: 18px; }
+    .quick { display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px; }
+    .quick a { padding: 16px; display:flex; gap:12px; align-items:flex-start; min-height: 112px; }
+    .quick strong { display:block; margin-bottom:4px; }
+    .quick span { color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .table-wrap { overflow-x:auto; -webkit-overflow-scrolling: touch; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 12px 10px; border-bottom:1px solid rgba(148,163,184,.12); text-align:left; vertical-align: top; }
+    th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+    .logs { display:grid; grid-template-columns: 240px minmax(0, 1fr); gap: 14px; }
+    .log-tabs { display:grid; gap:8px; align-content:start; }
+    .log-tabs button { min-height: var(--tap); border:1px solid var(--line); border-radius:14px; background: rgba(15,23,42,.7); color: var(--muted); text-align:left; padding: 0 12px; cursor:pointer; }
+    .log-tabs button.active { color: var(--text); border-color: rgba(34,211,238,.32); background: rgba(34,211,238,.08); }
+    pre { margin:0; padding:16px; border-radius:18px; border:1px solid var(--line); background:#020617; color:#d1d5db; overflow:auto; max-height: 68vh; font: 12px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
+    .empty { display:none; padding: 20px; border:1px dashed var(--line2); border-radius: 18px; color: var(--muted); text-align:center; }
+    .view { display:none; }
+    .view.active { display:block; }
+    .notice { border:1px solid rgba(251,191,36,.24); background: rgba(251,191,36,.08); color:#fde68a; border-radius:18px; padding:14px; line-height:1.6; }
+    @media (max-width: 1120px) {
+      .app { grid-template-columns: 1fr; }
+      .side { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+      .nav { display:flex; overflow-x:auto; padding-bottom:4px; }
+      .nav button { flex: 0 0 auto; }
+      .foot { display:none; }
+      .grid, .grid.two, .quick, .logs { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 720px) {
+      .main { padding: 14px 12px 34px; }
+      .top { margin: -14px -12px 16px; padding: 12px; flex-direction:column; align-items:stretch; }
+      .hero { border-radius: 24px; padding: 22px; }
+      .metrics, .grid, .grid.two, .quick, .logs { grid-template-columns: 1fr; }
+      .head { flex-direction: column; align-items:flex-start; }
+      .meta { grid-template-columns: 1fr; }
+      .btn { flex: 1 1 auto; }
+      .search { max-width: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="side">
+      <div class="mark">
+        <div class="logo">◉</div>
+        <div><h1>ServerHub Next</h1><p>独立新项目 · 覆盖现有 Web 能力</p></div>
+      </div>
+      <div class="nav" id="nav"></div>
+      <div class="foot">
+        项目原则：<br>
+        1. UI 不借鉴现有任何页面。<br>
+        2. 后端前端全部新写。<br>
+        3. 配置驱动，方便未来扩展。
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="top">
+        <div class="search">
+          <span>⌕</span>
+          <input id="search" placeholder="搜索服务、端口、路径、标签… 按 / 聚焦" autocomplete="off" />
+        </div>
+        <div class="tools">
+          <button class="btn" id="refreshBtn">刷新</button>
+          <button class="btn primary" onclick="location.hash='#logs'">日志墙</button>
+        </div>
+      </header>
+
+      <section class="view active" id="view-overview"></section>
+      <section class="view" id="view-services"></section>
+      <section class="view" id="view-agents"></section>
+      <section class="view" id="view-knowledge"></section>
+      <section class="view" id="view-tasks"></section>
+      <section class="view" id="view-backups"></section>
+      <section class="view" id="view-security"></section>
+      <section class="view" id="view-logs"></section>
+    </main>
+  </div>
+
+  <script>
+    const ICON = { command:'◉', activity:'▣', bot:'🤖', paw:'🐾', book:'📚', folder:'🗂', brain:'🧠', newspaper:'📰', globe:'🌐' };
+    const NAV = [
+      ['overview','总览','command'],['services','服务地图','globe'],['agents','Agent','bot'],['knowledge','知识记忆','book'],['tasks','任务','newspaper'],['backups','备份','folder'],['security','安全','activity'],['logs','日志墙','paw']
+    ];
+    const state = { data: null, q: '', log: 'server-home' };
+    const $ = (s, r=document) => r.querySelector(s);
+    const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+    const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const fmt = n => Number.isFinite(n) ? n.toFixed(0) + '%' : '-';
+    const bytes = n => {
+      if (!Number.isFinite(n)) return '-';
+      const u=['B','KB','MB','GB','TB']; let i=0, v=n; while(v>=1024 && i<u.length-1){v/=1024;i++;} return `${v.toFixed(i?1:0)} ${u[i]}`;
+    };
+    const uptime = s => { if(!Number.isFinite(s)) return '-'; const d=Math.floor(s/86400), h=Math.floor(s%86400/3600), m=Math.floor(s%3600/60); return d?`${d}天 ${h}小时`:h?`${h}小时 ${m}分`:`${m}分`; };
+    function nav(){ $('#nav').innerHTML = NAV.map(([id,t,ico]) => `<button data-view="${id}">${ICON[ico] || '◉'} ${esc(t)}</button>`).join(''); $('#nav').onclick = e => { const b = e.target.closest('button'); if (b) setView(b.dataset.view); }; }
+    function setView(id){ $$('.view').forEach(v => v.classList.toggle('active', v.id===`view-${id}`)); $$('#nav button').forEach(b => b.classList.toggle('active', b.dataset.view===id)); location.hash = id === 'overview' ? '' : `#${id}`; if (id==='logs') loadLogs(); }
+    function match(s){ const q = state.q.trim().toLowerCase(); if(!q) return true; return [s.name,s.unit,s.group,s.desc,s.path,s.port,s.exposure, ...(s.tags||[])].filter(Boolean).join(' ').toLowerCase().includes(q); }
+    function serviceCard(s){ const st = s.status || 'offline'; return `<article class="card service ${st}" data-search="${esc([s.name,s.unit,s.group,s.desc,s.path,s.port,s.exposure, ...(s.tags||[])].join(' ').toLowerCase())}">
+      <div class="row"><div class="svc"><div class="ico">${ICON[s.icon] || '◉'}</div><div><h4>${esc(s.name)}</h4><p>${esc(s.group)} · ${esc(s.unit || '-') }</p></div></div><span class="pill ${st==='online'?'public':st==='degraded'?'protected':'local-only'}">${st}</span></div>
+      <div class="desc">${esc(s.desc)}</div>
+      <div class="meta"><div>端口<br><strong>${esc(s.port || '-')}</strong></div><div>系统状态<br><strong>${esc(s.systemd || '-')}</strong></div><div>HTTP<br><strong>${esc(s.http?.status_code || '-')} ${s.http?.elapsed_ms ? `· ${s.http.elapsed_ms}ms` : ''}</strong></div><div>路径<br><strong title="${esc(s.path)}">${esc(s.path)}</strong></div></div>
+      <div class="actions">${s.url ? `<a class="btn primary" href="${esc(s.url)}" target="_blank" rel="noopener">打开</a>`:''}${s.local_url ? `<a class="btn" href="${esc(s.local_url)}" target="_blank" rel="noopener">本机 API</a>`:''}<button class="btn" onclick="location.hash='#logs'">日志</button></div>
+    </article>`; }
+    function metric(k,v,s,p){ return `<div class="metric card"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div><div class="s">${esc(s)}</div>${Number.isFinite(p)?`<div class="bar"><span style="width:${Math.min(100,Math.max(0,p))}%"></span></div>`:''}</div>`; }
+    function quick(title, desc, ico, href){ return `<a class="tile card" href="${href}" target="_blank" rel="noopener"><div class="ico">${ICON[ico] || '◉'}</div><div><strong>${esc(title)}</strong><span>${esc(desc)}</span></div></a>`; }
+    function renderOverview(){
+      const d = state.data, m = d.metrics;
+      const services = d.services.filter(match);
+      $('#view-overview').innerHTML = `
+        <div class="hero">
+          <div class="eyebrow">ServerHub Next</div>
+          <h2>一个全新构建的统一控制台</h2>
+          <p>本项目不借鉴现有任何一个 Web 的 UI，而是从零开始为你把现有功能全部重新组织：监控、Agent、知识库、文件、记忆、任务、备份和安全边界都在这里统一覆盖，后续扩展也保持清晰的分层结构。</p>
+          <div class="hero-actions">
+            <a class="btn primary" href="https://monitor.zmjjkkk.fun/" target="_blank">监控</a>
+            <a class="btn" href="https://agent.zmjjkkk.fun/" target="_blank">Agent</a>
+            <a class="btn" href="https://notes.zmjjkkk.fun/" target="_blank">知识库</a>
+            <a class="btn" href="https://files.zmjjkkk.fun/" target="_blank">文件</a>
+          </div>
+        </div>
+        <div class="metrics">
+          ${metric('在线', `${d.summary.online}/${d.summary.total}`, `${d.summary.degraded} 降级 · ${d.summary.offline} 离线`, d.summary.total ? d.summary.online / d.summary.total * 100 : 0)}
+          ${metric('CPU', fmt(m.cpu), '实时系统负载', m.cpu)}
+          ${metric('内存', fmt(m.mem), `${bytes(d.metrics.memory_used || 0)} / ${bytes(d.metrics.memory_total || 0)}`, m.mem)}
+          ${metric('磁盘', fmt(m.disk), `uptime ${uptime(m.uptime)}`, m.disk)}
+        </div>
+        <div class="head"><div><h3>快捷入口</h3><p>按业务场景进入不同能力区。</p></div></div>
+        <div class="quick">
+          ${quick('Agent 管理', 'Hermes / OpenClaw / 模型配置', 'bot', 'https://agent.zmjjkkk.fun/')}
+          ${quick('系统监控', '资源与指标', 'activity', 'https://monitor.zmjjkkk.fun/')}
+          ${quick('知识记忆', 'Obsidian 与共享记忆', 'brain', 'https://notes.zmjjkkk.fun/')}
+          ${quick('每日总结', '日报与汇总浏览', 'newspaper', 'http://[REDACTED_IP]:9500/')}
+        </div>
+        <div class="head"><div><h3>最近命中</h3><p>匹配当前搜索词的服务。</p></div></div>
+        <div class="grid">${services.slice(0,6).map(serviceCard).join('')}</div>
+      `;
+    }
+    function renderServices(){ const items = state.data.services.filter(match); const groups = [...new Set(items.map(i=>i.group))]; $('#view-services').innerHTML = `<div class="head"><div><h3>服务地图</h3><p>${items.length} 个匹配服务，按功能域归类。</p></div></div><div class="empty" id="emptyServices">没有匹配项</div>${groups.map(g=>`<div class="section"><div class="head"><div><h3>${esc(g)}</h3></div></div><div class="grid">${items.filter(i=>i.group===g).map(serviceCard).join('')}</div></div>`).join('')}`; $('#emptyServices').style.display = items.length ? 'none' : 'block'; }
+    function renderAgents(){ $('#view-agents').innerHTML = `<div class="head"><div><h3>Agent & Gateway</h3><p>只读覆盖 Hermes / OpenClaw、中转健康与本地网关。</p></div><button class="btn" onclick="loadProviderHealth()">刷新中转健康</button></div><div class="grid two">${state.data.services.filter(s => ['hermes-dashboard-web','openclaw-gateway','provider-health-monitor'].includes(s.unit)).map(s => serviceCard(s)).join('')}</div><div class="head"><div><h3>中转健康</h3><p>只读 /v1/models 探测，不压测 chat，不自动切换路由。</p></div></div><div class="panel" id="providerHealthBox"><div class="notice">点击“刷新中转健康”查看最新探测。</div></div>`; }
+    function renderKnowledge(){ const s = state.data.services.filter(x => ['obsidian-knowledge-web','shared-agent-memory','agent-recall-gateway'].includes(x.unit)); $('#view-knowledge').innerHTML = `<div class="head"><div><h3>知识与记忆</h3><p>覆盖 Obsidian RAG、共享记忆与统一召回。</p></div></div><div class="grid two">${s.map(serviceCard).join('')}</div><div class="head"><div><h3>统一召回测试</h3><p>从 shared-memory + Obsidian 同时召回，只读展示。</p></div></div><div class="panel"><div style="display:flex;gap:10px;flex-wrap:wrap"><input id="recallQuery" style="flex:1;min-width:240px;min-height:44px;border:1px solid var(--line);border-radius:14px;background:rgba(15,23,42,.72);color:var(--text);padding:0 14px" placeholder="例如：OpenClaw 为什么不回消息"/><button class="btn primary" onclick="runRecall()">召回</button></div><pre id="recallBox" style="margin-top:14px;max-height:420px">等待查询…</pre></div>`; }
+    async function loadProviderHealth(){ const box = $('#providerHealthBox'); if(!box) return; box.innerHTML = '<div class="notice">加载中…</div>'; try { const res = await fetch('/api/provider-health', {cache:'no-store'}); const j = await res.json(); const rows = j.data?.targets || []; box.innerHTML = `<div class="table-wrap"><table><thead><tr><th>目标</th><th>告警</th><th>连续失败</th><th>成功率</th><th>HTTP</th><th>延迟</th><th>错误</th><th>时间</th></tr></thead><tbody>${rows.map(r=>{ const l=r.latest||{}; return `<tr><td>${esc(r.name)}</td><td>${r.alert?'🚨 告警':'✅ 正常'}</td><td>${esc(r.consecutive_failures)}</td><td>${r.success_rate==null?'-':Math.round(r.success_rate*100)+'%'}</td><td>${esc(l.status_code || '-')}</td><td>${esc(l.latency_ms ?? '-')}ms</td><td>${esc(l.error || '-')}</td><td>${esc(l.checked_at || '-')}</td></tr>` }).join('')}</tbody></table></div><div class="notice" style="margin-top:12px">策略：连续失败达到阈值只报告；不自动切换路由；只探测 /v1/models。</div>`; } catch(e) { box.innerHTML = `<div class="notice">${esc(e.message)}</div>`; } }
+    async function runRecall(){ const q = ($('#recallQuery')?.value || '').trim(); const box = $('#recallBox'); if(!q){ box.textContent = '请输入查询内容'; return; } box.textContent = '召回中…'; try { const res = await fetch(`/api/recall?q=${encodeURIComponent(q)}&mode=debug&limit_memory=5&limit_obsidian=5`, {cache:'no-store'}); const j = await res.json(); if(!j.ok){ box.textContent = j.error || '召回失败'; return; } box.textContent = j.data?.markdown || JSON.stringify(j.data, null, 2); } catch(e) { box.textContent = e.message; } }
+    function renderTasks(){ $('#view-tasks').innerHTML = `<div class="head"><div><h3>任务</h3><p>未来可挂载 cron、自动化任务与工作流。</p></div></div><div class="panel"><div class="notice">当前版本先预留任务页结构，后续可接入 Hermes cron、OpenClaw 任务、日报和后台作业。</div></div>`; }
+    function renderBackups(){ $('#view-backups').innerHTML = `<div class="head"><div><h3>备份</h3><p>展示回滚点与最近备份目录。</p></div></div><div class="panel"><div class="notice">建议这里后续接入自动备份清单、diff、恢复按钮和备份校验。</div></div>`; }
+    function renderSecurity(){ $('#view-security').innerHTML = `<div class="head"><div><h3>安全</h3><p>权限、暴露面与写操作控制。</p></div></div><div class="panel"><div class="notice">默认只读，后续可扩展为登录、审计、二次确认、分级权限。</div></div>`; }
+    async function loadLogs(){
+      const view = $('#view-logs');
+      if (!view.innerHTML) view.innerHTML = `<div class="head"><div><h3>日志墙</h3><p>只读 journalctl tail。</p></div></div><div class="logs"><div class="log-tabs">${['server-home','hermes-system-monitor','hermes-dashboard-web','openclaw-gateway','nginx','shared-agent-memory'].map(x => `<button data-log="${x}">${x}</button>`).join('')}</div><pre id="logBox">加载中…</pre></div>`;
+      $$('.log-tabs button', view).forEach(b => b.classList.toggle('active', b.dataset.log === state.log));
+      $('.log-tabs', view).onclick = e => { const b = e.target.closest('button'); if (b) { state.log = b.dataset.log; loadLogs(); } };
+      try { const res = await fetch(`/api/logs/${state.log}?lines=160`); const data = await res.json(); $('#logBox').textContent = (data.lines || []).join('\n') || '暂无日志'; } catch (e) { $('#logBox').textContent = e.message; }
+    }
+    function renderAll(){ if (!state.data) return; renderOverview(); renderServices(); renderAgents(); renderKnowledge(); renderTasks(); renderBackups(); renderSecurity(); if (location.hash.replace('#','') === 'logs') loadLogs(); }
+    async function refresh(){ const res = await fetch('/api/state', { cache:'no-store' }); state.data = await res.json(); renderAll(); }
+    function boot(){
+      nav();
+      $('#refreshBtn').onclick = refresh;
+      $('#search').addEventListener('input', e => { state.q = e.target.value; renderAll(); });
+      window.addEventListener('keydown', e => { if (e.key === '/' && document.activeElement !== $('#search')) { e.preventDefault(); $('#search').focus(); } if (e.key === 'Escape') { $('#search').value=''; state.q=''; renderAll(); } });
+      window.addEventListener('hashchange', () => { const id = location.hash.replace('#','') || 'overview'; setView(NAV.some(x => x[0]===id) ? id : 'overview'); });
+      setView(location.hash.replace('#','') || 'overview');
+      refresh();
+      setInterval(() => { if (!document.hidden) refresh(); }, 60000);
+    }
+    document.addEventListener('DOMContentLoaded', boot);
+  </script>
+</body>
+</html>

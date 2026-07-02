@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>ServerHub · 统一控制台</title>
+  <link rel="stylesheet" href="/serverhub-assets/styles.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail" aria-label="ServerHub 导航">
+      <div class="brand"><span class="mark">S</span><div><strong>ServerHub</strong><small>Unified Console</small></div></div>
+      <nav>
+        <a href="#overview" class="active">总览</a>
+        <a href="#monitor">监控</a>
+        <a href="#agents">Agent</a>
+        <a href="#notes">知识库</a>
+        <a href="#files">文件</a>
+        <a href="#memory">记忆</a>
+        <a href="#tasks">任务</a>
+        <a href="#backups">备份</a>
+        <a href="#security">安全</a>
+      </nav>
+      <div class="rail-note">只读第一版 · 旧服务保留</div>
+    </aside>
+    <main>
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Personal Server Operations</p>
+          <h1>统一入口，独立服务，可回滚上线</h1>
+        </div>
+        <div class="command"><span>⌘K</span><input id="search" placeholder="搜索服务、路径、端口、风险…" autocomplete="off"></div>
+        <div class="clock" id="clock">--:-- UTC</div>
+      </header>
+
+      <section id="overview" class="hero">
+        <div>
+          <p class="eyebrow">Server Posture</p>
+          <h2>系统态势</h2>
+          <p>ServerHub 第一版只聚合状态和入口；底层 monitor、agents、notes、files、memory 继续独立运行。</p>
+          <div class="quick-actions">
+            <a href="https://monitor.zmjjkkk.fun/" target="_blank" rel="noopener">打开监控</a>
+            <a href="https://agent.zmjjkkk.fun/" target="_blank" rel="noopener">Agent 控制台</a>
+            <a href="https://notes.zmjjkkk.fun/" target="_blank" rel="noopener">知识库</a>
+            <a href="https://files.zmjjkkk.fun/" target="_blank" rel="noopener">文件浏览</a>
+          </div>
+        </div>
+        <div class="metrics" id="metrics">
+          <article><span>CPU</span><strong>--</strong></article>
+          <article><span>内存</span><strong>--</strong></article>
+          <article><span>磁盘</span><strong>--</strong></article>
+          <article><span>服务</span><strong>--</strong></article>
+        </div>
+      </section>
+
+      <section class="grid two">
+        <article class="panel" id="monitor"><div class="head"><h3>服务健康矩阵</h3><span id="serviceSummary">加载中</span></div><div class="service-grid" id="services"></div></article>
+        <article class="panel" id="security"><div class="head"><h3>风险提醒</h3><span>只读扫描</span></div><div class="risk-list" id="risks"></div></article>
+      </section>
+
+      <section class="grid three" id="entryCards">
+        <article class="entry" data-keywords="agent hermes openclaw 模型 会话"><span>🤖</span><h3>Agent</h3><p>OpenClaw / Hermes 状态、日志与模型入口。</p><a href="https://agent.zmjjkkk.fun/" target="_blank" rel="noopener">进入旧服务</a></article>
+        <article class="entry" data-keywords="notes obsidian 知识库 vault"><span>📚</span><h3>知识库</h3><p>Obsidian vault 浏览和近期知识更新。</p><a href="https://notes.zmjjkkk.fun/" target="_blank" rel="noopener">进入旧服务</a></article>
+        <article class="entry" data-keywords="files 文件 浏览 只读"><span>🗂️</span><h3>文件</h3><p>文件浏览入口，第一版不提供写操作。</p><a href="https://files.zmjjkkk.fun/" target="_blank" rel="noopener">进入旧服务</a></article>
+        <article class="entry" data-keywords="memory 记忆 shared api"><span>🧠</span><h3>记忆</h3><p>共享记忆统计，禁止公网写接口暴露。</p><a href="#memory">查看统计</a></article>
+        <article class="entry" data-keywords="tasks cron timer 后台"><span>⏱️</span><h3>任务</h3><p>OpenClaw / Hermes cron 与 systemd timer 只读摘要。</p><a href="#tasks">查看任务</a></article>
+        <article class="entry" data-keywords="backup 备份 rollback 回滚"><span>🛟</span><h3>备份</h3><p>迁移备份、Nginx/systemd 备份和回滚说明。</p><a href="#backups">查看备份</a></article>
+      </section>
+
+      <section class="grid two">
+        <article class="panel" id="tasks"><div class="head"><h3>最近任务</h3><span>只读</span></div><pre id="tasksBody">加载中…</pre></article>
+        <article class="panel" id="backups"><div class="head"><h3>备份与回滚</h3><span id="backupStamp">已创建</span></div><pre id="backupBody">/root/serverhub-migration/backup/20260621-172856</pre></article>
+      </section>
+
+      <section class="panel wide" id="memory"><div class="head"><h3>只读 API 状态</h3><span>危险操作隐藏</span></div><pre id="apiBody">加载中…</pre></section>
+    </main>
+  </div>
+  <script src="/serverhub-assets/app.js" defer></script>
+</body>
+</html>

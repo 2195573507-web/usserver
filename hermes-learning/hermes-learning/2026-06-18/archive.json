@@ -1,0 +1,64 @@
+{
+  "date": "2026-06-18",
+  "projects": [
+    {
+      "name": "openclaw/openclaw",
+      "url": "https://github.com/openclaw/openclaw",
+      "tags": ["ai", "assistant", "multi-channel", "gateway", "app", "sandbox"],
+      "score": 9,
+      "stars": 379387,
+      "language": "TypeScript"
+    },
+    {
+      "name": "obra/superpowers",
+      "url": "https://github.com/obra/superpowers",
+      "tags": ["ai", "agent", "skills", "tdd", "workflow", "multi-harness"],
+      "score": 9,
+      "stars": 232250,
+      "language": "Shell"
+    },
+    {
+      "name": "affaan-m/ECC",
+      "url": "https://github.com/affaan-m/ECC",
+      "tags": ["ai", "agent", "skills", "security", "cross-harness", "optimization"],
+      "score": 8,
+      "stars": 217714,
+      "language": "JavaScript"
+    },
+    {
+      "name": "n8n-io/n8n",
+      "url": "https://github.com/n8n-io/n8n",
+      "tags": ["web", "workflow", "automation", "ai", "low-code", "mcp"],
+      "score": 8,
+      "stars": 193054,
+      "language": "TypeScript"
+    },
+    {
+      "name": "embassy-rs/embassy",
+      "url": "https://github.com/embassy-rs/embassy",
+      "tags": ["embedded", "rust", "async", "iot", "mcu", "hal"],
+      "score": 8,
+      "stars": 9411,
+      "language": "Rust"
+    },
+    {
+      "name": "boxlite-ai/boxlite",
+      "url": "https://github.com/boxlite-ai/boxlite",
+      "tags": ["ai", "edge", "wasm", "agent", "compute", "sandbox"],
+      "score": 7,
+      "stars": 2074,
+      "language": "Rust"
+    },
+    {
+      "name": "arXiv:2606.19236 (STARE)",
+      "url": "https://arxiv.org/abs/2606.19236",
+      "tags": ["ai", "research", "grpo", "rl", "entropy", "llm"],
+      "score": 7,
+      "stars": 0,
+      "language": "N/A"
+    }
+  ],
+  "summary": "Agent 技能系统成为标配；沙箱隔离从可选变为必须；Rust 在嵌入式加速普及；Agent 从对话工具进化为操作系统级平台",
+  "sources": ["github-trending", "hacker-news", "arxiv"],
+  "coverage": ["ai/llm", "web", "embedded/iot", "app"]
+}

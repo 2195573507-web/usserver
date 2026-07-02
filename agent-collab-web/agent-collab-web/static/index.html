@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent QQ 群聊</title>
+<style>
+:root{--bg:#0b1220;--panel:#101827;--panel2:#172033;--border:#2b3548;--text:#e6edf3;--muted:#8b949e;--blue:#58a6ff;--orange:#f59e0b;--green:#3fb950;--red:#f85149;--purple:#bc8cff;--qq:#12b7f5;--mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden;background:#0b1220;color:var(--text);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input,textarea{font:inherit}button{border:0;border-radius:8px;padding:9px 12px;font-weight:750;cursor:pointer;background:var(--qq);color:white}button:hover{filter:brightness(1.08)}button.secondary{background:#212a3b;border:1px solid var(--border);color:var(--text)}button.ghost{background:transparent;border:1px solid var(--border);color:var(--muted)}input,textarea{width:100%;background:#0b1220;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px 11px;outline:none}textarea{resize:none}input:focus,textarea:focus{border-color:var(--qq);box-shadow:0 0 0 3px rgba(18,183,245,.14)}
+.app{height:100vh;display:grid;grid-template-columns:280px minmax(0,1fr) 220px}.left,.right{background:var(--panel);border-color:var(--border);overflow:hidden}.left{border-right:1px solid var(--border);display:flex;flex-direction:column}.right{border-left:1px solid var(--border)}.brand{height:64px;padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}.logo{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#12b7f5,#58a6ff);display:flex;align-items:center;justify-content:center;font-weight:900}.brand-title{font-weight:900}.brand-sub{font-size:.76rem;color:var(--muted);font-family:var(--mono)}.online{margin-left:auto;width:9px;height:9px;background:var(--green);border-radius:50%;box-shadow:0 0 10px var(--green)}
+.new-room{padding:12px;border-bottom:1px solid var(--border)}.new-room input{margin-bottom:8px}.rooms{padding:10px;overflow:auto;display:flex;flex-direction:column;gap:8px}.room{display:flex;gap:10px;padding:10px;border-radius:10px;cursor:pointer}.room:hover,.room.active{background:#1d283a}.room-icon{width:38px;height:38px;border-radius:10px;background:#24324a;display:flex;align-items:center;justify-content:center;flex:0 0 auto}.room-name{font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.room-meta{color:var(--muted);font-size:.75rem;margin-top:2px}.empty{padding:26px;color:var(--muted);text-align:center}
+.chat{height:100vh;display:grid;grid-template-rows:64px 1fr 156px;background:#0f1726}.chat-head{border-bottom:1px solid var(--border);padding:10px 18px;display:flex;align-items:center;justify-content:space-between;background:#111b2c}.chat-title{font-size:1.05rem;font-weight:900}.chat-desc{color:var(--muted);font-size:.78rem;margin-top:2px}.head-actions{display:flex;gap:8px}.messages{padding:18px;overflow:auto;display:flex;flex-direction:column;gap:14px}.msg{display:flex;gap:10px;max-width:82%}.msg.me{align-self:flex-end;flex-direction:row-reverse}.avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;flex:0 0 auto}.avatar.user{background:rgba(63,185,80,.18);color:var(--green);border:1px solid rgba(63,185,80,.4)}.avatar.hermes{background:rgba(245,158,11,.18);color:var(--orange);border:1px solid rgba(245,158,11,.45)}.avatar.openclaw{background:rgba(88,166,255,.18);color:var(--blue);border:1px solid rgba(88,166,255,.45)}.avatar.system{background:rgba(188,140,255,.18);color:var(--purple);border:1px solid rgba(188,140,255,.45)}.bubble-wrap{min-width:0}.msg-name{font-size:.75rem;color:var(--muted);margin:0 0 4px 4px}.msg.me .msg-name{text-align:right;margin:0 4px 4px 0}.bubble{background:#1a2538;border:1px solid var(--border);border-radius:4px 14px 14px 14px;padding:9px 11px;white-space:pre-wrap;word-break:break-word}.msg.me .bubble{background:#144d2a;border-color:rgba(63,185,80,.35);border-radius:14px 4px 14px 14px}.bubble.hermes{border-color:rgba(245,158,11,.45)}.bubble.openclaw{border-color:rgba(88,166,255,.45)}.bubble.system{background:rgba(188,140,255,.08);border-color:rgba(188,140,255,.35)}.time{font-size:.7rem;color:var(--muted);margin-top:4px}.mention{color:var(--qq);font-weight:850}
+.composer{border-top:1px solid var(--border);background:#111b2c;padding:10px 14px}.quick{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}.quick button{padding:6px 10px;font-size:.8rem}.input-row{display:flex;gap:10px;align-items:flex-end}.input-row textarea{height:78px}.send{width:86px;height:78px;font-size:1rem}.tip{color:var(--muted);font-size:.73rem;margin-top:6px}
+.members-head{height:64px;padding:14px 16px;border-bottom:1px solid var(--border)}.members-head b{display:block}.members-head span{color:var(--muted);font-size:.76rem}.member-list{padding:12px;display:flex;flex-direction:column;gap:10px}.member{display:flex;gap:9px;align-items:center}.member .avatar{width:34px;height:34px}.member-name{font-weight:850}.member-role{color:var(--muted);font-size:.74rem}.rules{margin:12px;border:1px solid rgba(210,153,34,.35);background:rgba(210,153,34,.08);border-radius:10px;padding:10px;color:var(--muted);font-size:.78rem}
+@media(max-width:920px){body{overflow:auto}.app{height:auto;grid-template-columns:1fr}.right{display:none}.chat{height:auto;min-height:620px}.messages{min-height:420px}.msg{max-width:100%}.chat{grid-template-rows:64px minmax(420px,1fr) auto}.input-row{display:block}.send{width:100%;height:42px;margin-top:8px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="left">
+    <div class="brand"><div class="logo">群</div><div><div class="brand-title">Agent 群聊</div><div class="brand-sub">像 QQ 群一样协作</div></div><span class="online" id="onlineDot"></span></div>
+    <div class="new-room">
+      <input id="newTitle" placeholder="新群名称，例如：网站优化群">
+      <input id="newObjective" placeholder="群目标，可不填">
+      <button onclick="createTask()" style="width:100%">新建群聊</button>
+    </div>
+    <div id="taskList" class="rooms"><div class="empty">加载中...</div></div>
+  </aside>
+
+  <main class="chat">
+    <div id="roomHead" class="chat-head">
+      <div><div class="chat-title">请选择一个群聊</div><div class="chat-desc">左侧新建或打开一个协作群。</div></div>
+      <div class="head-actions"><button class="ghost" onclick="refreshCurrent()">刷新</button></div>
+    </div>
+    <div id="messages" class="messages"><div class="empty">还没有打开群聊。</div></div>
+    <div class="composer">
+      <div class="quick">
+        <button class="secondary" onclick="at('hermes')">@Hermes</button>
+        <button class="secondary" onclick="at('openclaw')">@OpenClaw</button>
+        <button class="secondary" onclick="at('room')">@全体</button>
+        <button class="secondary" onclick="setSpeaker('hermes')">记录 Hermes 回复</button>
+        <button class="secondary" onclick="setSpeaker('openclaw')">记录 OpenClaw 回复</button>
+        <button class="secondary" onclick="setSpeaker('user')">切回我</button>
+      </div>
+      <div class="input-row">
+        <textarea id="messageContent" placeholder="像 QQ 群一样输入消息。Ctrl+Enter 发送。"></textarea>
+        <button class="send" onclick="sendMessage()">发送</button>
+      </div>
+      <div class="tip">当前发言人：<span id="speakerText">我</span>；@对象：<span id="targetText">@全体</span>。第一版仍是记录群聊，后续再接自动转发。</div>
+    </div>
+  </main>
+
+  <aside class="right">
+    <div class="members-head"><b>群成员</b><span>4 人</span></div>
+    <div class="member-list">
+      <div class="member"><div class="avatar user">我</div><div><div class="member-name">至秦</div><div class="member-role">群主 / 确认</div></div></div>
+      <div class="member"><div class="avatar hermes">H</div><div><div class="member-name">Hermes</div><div class="member-role">执行 / 操作服务器</div></div></div>
+      <div class="member"><div class="avatar openclaw">O</div><div><div class="member-name">OpenClaw</div><div class="member-role">审查 / 辅助</div></div></div>
+      <div class="member"><div class="avatar system">S</div><div><div class="member-name">System</div><div class="member-role">记录 / 状态</div></div></div>
+    </div>
+    <div class="rules">像 QQ 群一样用：你发消息 → @Hermes 或 @OpenClaw → 手动记录回复。后续可以接自动拉取回复。</div>
+  </aside>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+let currentTaskId=null,tasks=[],speaker='user',target='room';
+function esc(v){return String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function nameOf(v){return {user:'至秦',hermes:'Hermes',openclaw:'OpenClaw',system:'System',room:'全体'}[v]||v;}
+function avatarOf(v){return {user:'我',hermes:'H',openclaw:'O',system:'S'}[v]||'?';}
+function timeText(ts){return new Date(ts*1000).toLocaleTimeString('zh-CN',{hour12:false,hour:'2-digit',minute:'2-digit'});}
+async function api(url,opt={}){const r=await fetch(url,{headers:{'Content-Type':'application/json'},...opt});const d=await r.json();if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);return d;}
+function mentionText(v){return v==='room'?'@全体':'@'+nameOf(v)}
+function updateTip(){$('#speakerText').textContent=nameOf(speaker);$('#targetText').textContent=mentionText(target)}
+function setSpeaker(v){speaker=v;updateTip();$('#messageContent').focus()}
+function at(v){target=v;const m=mentionText(v)+' ';const box=$('#messageContent');if(!box.value.startsWith(m)&&v!=='room')box.value=m+box.value.replace(/^@(Hermes|OpenClaw|全体)\s*/, '');if(v==='room')box.value=box.value.replace(/^@(Hermes|OpenClaw)\s*/, '@全体 ');updateTip();box.focus()}
+async function loadTasks(){const d=await api('/api/tasks');tasks=d.tasks||[];$('#taskList').innerHTML=tasks.length?tasks.map(t=>`<div class="room ${t.id===currentTaskId?'active':''}" onclick="openTask('${t.id}')"><div class="room-icon">#</div><div style="min-width:0"><div class="room-name">${esc(t.title)}</div><div class="room-meta">${esc(t.status)} · ${t.message_count} 条消息</div></div></div>`).join(''):'<div class="empty">暂无群聊</div>'}
+async function createTask(){const title=$('#newTitle').value.trim()||'默认 Agent 协作群';const objective=$('#newObjective').value.trim();const task=await api('/api/tasks',{method:'POST',body:JSON.stringify({title,objective,main_agent:'hermes',helper_agent:'openclaw'})});$('#newTitle').value='';$('#newObjective').value='';await loadTasks();openTask(task.id)}
+async function openTask(id){currentTaskId=id;const t=await api('/api/tasks/'+id);renderTask(t);await loadTasks()}
+function renderTask(t){$('#roomHead').innerHTML=`<div><div class="chat-title">${esc(t.title)}</div><div class="chat-desc">${esc(t.objective||'Hermes 和 OpenClaw 的协作群')}</div></div><div class="head-actions"><button class="ghost" onclick="setStatus('paused')">暂停</button><button class="ghost" onclick="setStatus('done')">完成</button><button class="ghost" onclick="refreshCurrent()">刷新</button></div>`;const msgs=t.messages||[];$('#messages').innerHTML=msgs.length?msgs.map(m=>{const me=m.sender==='user';return `<div class="msg ${me?'me':''}"><div class="avatar ${esc(m.sender)}">${avatarOf(m.sender)}</div><div class="bubble-wrap"><div class="msg-name">${esc(nameOf(m.sender))} <span class="mention">${mentionText(m.target)}</span> · ${timeText(m.created_at)}</div><div class="bubble ${esc(m.sender)}">${esc(m.content)}</div></div></div>`}).join(''):'<div class="empty">暂无消息，发第一条吧。</div>';$('#messages').scrollTop=$('#messages').scrollHeight}
+async function sendMessage(){if(!currentTaskId){alert('先选择或新建一个群聊');return}const content=$('#messageContent').value.trim();if(!content)return;await api(`/api/tasks/${currentTaskId}/messages`,{method:'POST',body:JSON.stringify({sender:speaker,target,kind:'qq-group-message',content})});$('#messageContent').value='';speaker='user';target='room';updateTip();await openTask(currentTaskId)}
+async function setStatus(status){if(!currentTaskId)return;await api('/api/tasks/'+currentTaskId,{method:'POST',body:JSON.stringify({status})});await openTask(currentTaskId)}
+async function refreshCurrent(){if(currentTaskId)await openTask(currentTaskId);else await loadTasks()}
+async function init(){
+  try{await api('/api/status')}catch(e){console.warn('status probe failed',e);$('#onlineDot').style.background='var(--red)'}
+  try{await loadTasks();if(tasks[0])openTask(tasks[0].id)}catch(e){$('#taskList').innerHTML='<div class="empty">群聊列表加载失败：'+esc(e.message)+'</div>'}
+  updateTip()
+}
+$('#messageContent').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')sendMessage()});
+init();setInterval(refreshCurrent,10000);
+</script>
+</body>
+</html>

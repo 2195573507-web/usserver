@@ -1,0 +1,1601 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0d1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>服务器监控面板</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+/* ===== Theme: Dark ===== */
+:root {
+  --bg: #0d1117; --bg2: #161b22; --card: #1c2333;
+  --text: #e6edf3; --text2: #8b949e; --text3: #484f58;
+  --border: #30363d; --accent: #58a6ff; --accent2: rgba(88,166,255,0.12);
+  --green: #3fb950; --yellow: #d29922; --red: #f85149;
+  --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  --btn-bg: #21262d; --btn-hover: #30363d; --btn-active: #1f6feb;
+  --card-warn-bg: rgba(210,153,34,0.06);
+  --card-crit-bg: rgba(248,81,73,0.08);
+}
+
+/* ===== Reset ===== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;-webkit-tap-highlight-color:transparent}
+body{
+  font-family: -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+  background:
+    radial-gradient(circle at 16% 0%, rgba(88,166,255,.10), transparent 26rem),
+    radial-gradient(circle at 88% 8%, rgba(63,185,80,.07), transparent 24rem),
+    var(--bg);
+  color: var(--text); min-height: 100vh;
+  transition: background .3s, color .3s;
+  overflow-x: hidden;
+  font-variant-numeric: tabular-nums;
+}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:8px}
+::selection{background:rgba(88,166,255,.32);color:#fff}
+
+/* ===== Top Bar ===== */
+.topbar{
+  position: sticky; top: 0; z-index: 100;
+  background: color-mix(in srgb, var(--bg2) 84%, transparent); border-bottom: 1px solid var(--border);
+  padding: 10px 18px; display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 8px; backdrop-filter: blur(16px) saturate(1.25);
+  box-shadow: 0 10px 32px rgba(0,0,0,.22);
+}
+.topbar .left{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.topbar .host{font-weight:700;color:var(--accent);display:flex;align-items:center;gap:6px}
+.topbar .host .dot{width:8px;height:8px;border-radius:50%}
+.topbar .host .dot.on{background:var(--green);box-shadow:0 0 6px var(--green)}
+.topbar .host .dot.off{background:var(--red);box-shadow:0 0 6px var(--red)}
+.topbar .uptime{font-size:.8rem;color:var(--text2)}
+.topbar .right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.topbar .countdown{font-size:.78rem;color:var(--text2);white-space:nowrap;min-width:90px;text-align:right}
+.topbar .countdown span{color:var(--accent);font-weight:600}
+
+/* ===== Main Container ===== */
+.main{max-width:1400px;margin:0 auto;padding:14px 16px}
+
+/* ===== Toolbar ===== */
+.toolbar{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.toolbar .lbl{font-size:.82rem;color:var(--text2);white-space:nowrap}
+.toolbar .sep{width:1px;height:22px;background:var(--border);margin:0 4px}
+.btn{
+  padding:5px 14px;border-radius:7px;border:1px solid var(--border);
+  background:var(--btn-bg);color:var(--text);font-size:.82rem;cursor:pointer;
+  font-family:inherit;transition:all .2s;white-space:nowrap;
+}
+.btn:hover{background:var(--btn-hover);transform:translateY(-1px);border-color:rgba(88,166,255,.45)}
+.btn:active{transform:translateY(0)}
+.btn.on{background:linear-gradient(135deg,var(--btn-active),#388bfd);color:#fff;border-color:rgba(88,166,255,.85);box-shadow:0 8px 24px rgba(31,111,235,.22)}
+.btn-int{min-width:44px;text-align:center}
+.live{display:flex;align-items:center;gap:5px;margin-left:auto;font-size:.78rem;color:var(--green)}
+.live .d{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* ===== Stat Cards Row ===== */
+.stat-cards{
+  display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap:12px;
+  margin-bottom:14px;
+}
+.stat-card{
+  background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,0)),var(--card); border:1px solid var(--border);
+  border-radius:14px; padding:16px 18px; box-shadow:var(--shadow);
+  position:relative; overflow:hidden; transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease,background .3s;
+  border-left:3px solid var(--green);
+}
+.stat-card::before{content:"";position:absolute;inset:0 0 auto 0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.16),transparent)}
+.stat-card:hover{transform:translateY(-2px);border-color:rgba(88,166,255,.35);box-shadow:0 12px 34px rgba(0,0,0,.42)}
+.stat-card.warn{border-left-color:var(--yellow);background:var(--card-warn-bg)}
+.stat-card.crit{border-left-color:var(--red);background:var(--card-crit-bg)}
+.stat-card .sc-head{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.stat-card .sc-head .ico{font-size:1.1rem}
+.stat-card .sc-head .lbl{font-size:.78rem;color:var(--text2);font-weight:600}
+.stat-card .sc-val{font-size:2.5rem;font-weight:850;line-height:1.1;letter-spacing:-.04em;transition:color .3s}
+.stat-card .sc-sub{font-size:.75rem;color:var(--text2);margin-bottom:8px}
+.stat-card .sc-bar{height:4px;border-radius:2px;background:var(--btn-bg);overflow:hidden;position:relative}
+.stat-card .sc-bar-fill{height:100%;border-radius:2px;transition:width .5s,background .5s}
+.stat-card .sc-spark{position:absolute;right:14px;bottom:14px;opacity:0.6}
+
+/* ===== Per-Core CPU ===== */
+.percore-wrap{
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:16px 18px; margin-bottom:14px; box-shadow:var(--shadow);
+}
+.percore-wrap .pc-head{font-weight:700;font-size:.95rem;margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.percore-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.percore-item{flex:1;min-width:60px;text-align:center}
+.percore-bar-wrap{height:60px;display:flex;align-items:flex-end;justify-content:center;margin-bottom:4px}
+.percore-bar{
+  width:100%;max-width:42px;border-radius:4px 4px 0 0;
+  transition:height .5s,background .5s;min-height:4px;
+}
+.percore-label{font-size:.68rem;color:var(--text2)}
+.percore-pct{font-size:.72rem;font-weight:700;color:var(--text)}
+
+/* ===== Chart Sections ===== */
+.chart-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:12px;
+  margin-bottom:14px;
+}
+.chart-card{
+  background:linear-gradient(180deg,rgba(255,255,255,.022),rgba(255,255,255,0)),var(--card); border:1px solid var(--border);
+  border-radius:14px; padding:14px 18px 8px; box-shadow:var(--shadow);
+  transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease;
+}
+.chart-card:hover{transform:translateY(-1px);border-color:rgba(88,166,255,.28);box-shadow:0 10px 30px rgba(0,0,0,.38)}
+.chart-card .ch-head{font-weight:700;font-size:.88rem;color:var(--text2);margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.chart-card .chart{width:100%;height:220px}
+
+/* ===== System Load ===== */
+.load-cards{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+  margin-bottom:14px;
+}
+.load-cell{
+  background:var(--card); border:1px solid var(--border);
+  border-radius:10px; padding:14px; text-align:center; box-shadow:var(--shadow);
+}
+.load-cell .val{font-size:1.4rem;font-weight:800}
+.load-cell .lab{font-size:.72rem;color:var(--text2);margin-top:2px}
+.load-cell .bar{height:4px;border-radius:2px;margin-top:8px;background:var(--btn-bg);overflow:hidden}
+.load-cell .bar-fill{height:100%;border-radius:2px;transition:width .5s,background .5s}
+
+/* ===== Top Process List ===== */
+.proc-wrap{
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:16px 18px; box-shadow:var(--shadow);
+}
+.proc-wrap .ph-head{font-weight:700;font-size:.95rem;margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.proc-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.proc-row:last-child{border-bottom:none}
+.proc-idx{font-weight:700;color:var(--text3);min-width:20px;font-size:.82rem}
+.proc-name{flex:1;min-width:120px;font-size:.85rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.proc-pid{font-size:.72rem;color:var(--text2);min-width:70px}
+.proc-stat{display:flex;align-items:center;gap:6px;min-width:100px}
+.proc-stat .ps-val{font-size:.8rem;font-weight:700;min-width:48px;text-align:right}
+.proc-stat .ps-bar-wrap{width:80px;height:4px;border-radius:2px;background:var(--btn-bg);overflow:hidden}
+.proc-stat .ps-bar-fill{height:100%;border-radius:2px;transition:width .5s,background .5s}
+.proc-stat .ps-lbl{font-size:.65rem;color:var(--text2)}
+.proc-empty{text-align:center;color:var(--text3);padding:16px;font-size:.82rem}
+
+/* ===== Alert Banner ===== */
+.alert-banner{display:none;align-items:center;gap:8px;margin-bottom:10px;padding:10px 14px;border-radius:10px;border:1px solid rgba(248,81,73,.45);background:rgba(248,81,73,.10);color:var(--red);font-size:.82rem;font-weight:600}
+.alert-banner.on{display:flex;animation:alertPulse 1.5s infinite}
+@keyframes alertPulse{0%,100%{box-shadow:0 0 0 rgba(248,81,73,0)}50%{box-shadow:0 0 18px rgba(248,81,73,.25)}}
+
+/* ===== Health Badges Row ===== */
+.health-row{
+  display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;
+}
+.health-badge{
+  display:flex;align-items:center;gap:6px;
+  padding:6px 14px;border-radius:20px;font-size:.77rem;font-weight:650;
+  background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,0)),var(--card);border:1px solid var(--border);
+  transition:all .4s;
+}
+.health-badge.ok{color:var(--green);border-color:rgba(63,185,80,.35)}
+.health-badge.warn{color:var(--yellow);border-color:rgba(210,153,34,.45)}
+.health-badge.bad{color:var(--red);border-color:rgba(248,81,73,.45);animation:alertPulse 2s infinite}
+.health-badge span{color:var(--text);font-weight:700}
+
+/* ===== Error Toast ===== */
+.err{
+  position:fixed;top:60px;left:50%;transform:translateX(-50%);
+  background:var(--red);color:#fff;padding:10px 22px;border-radius:10px;
+  font-size:.82rem;z-index:200;opacity:0;pointer-events:none;transition:opacity .3s;
+  max-width:90vw;text-align:center;
+}
+.err.on{opacity:1;pointer-events:auto}
+
+/* ===== Responsive ===== */
+@media(max-width:1024px){
+  .chart-grid{grid-template-columns:1fr}
+  .chart-card .chart{height:190px}
+  .stat-card .sc-val{font-size:2rem}
+}
+@media(max-width:768px){
+  .topbar{padding:8px 12px}
+  .topbar .host{font-size:.85rem}
+  .topbar .uptime{font-size:.72rem}
+  .main{padding:8px 10px}
+  .stat-card{padding:12px}
+  .stat-card .sc-val{font-size:1.6rem}
+  .chart-grid{grid-template-columns:1fr;gap:8px}
+  .chart-card{padding:10px 14px 6px}
+  .chart-card .chart{height:160px}
+  .load-cards{gap:6px}
+  .load-cell{padding:10px}
+  .load-cell .val{font-size:1.1rem}
+  .percore-bar-wrap{height:40px}
+  .percore-bar{max-width:30px}
+  .btn{padding:9px 12px;min-height:42px;font-size:.75rem;flex:1 1 auto}
+  .proc-row{gap:8px}
+  .proc-stat .ps-bar-wrap{width:50px}
+}
+@media(max-width:480px){
+  .stat-card .sc-val{font-size:2.2rem}
+  .stat-card .sc-spark{right:8px;bottom:8px}
+  .chart-card .chart{height:140px}
+  .load-cards{grid-template-columns:1fr}
+  .percore-row{gap:6px}
+  .percore-item{min-width:40px}
+  .percore-bar-wrap{height:32px}
+  .percore-bar{max-width:24px}
+  .percore-label{font-size:.6rem}
+  .topbar .countdown{font-size:.7rem}
+  .toolbar{gap:6px}
+}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}
+  .stat-card:hover,.chart-card:hover,.btn:hover{transform:none}
+}
+</style>
+</head>
+<body>
+
+<div class="err" id="err"></div>
+
+<!-- 顶部栏 -->
+<div class="topbar">
+  <div class="left">
+    <span class="host"><span class="dot on" id="dot"></span><span id="host">—</span></span>
+    <span class="uptime">运行 <span id="up">—</span></span>
+  </div>
+  <div class="right">
+  </div>
+</div>
+
+<div class="main">
+
+<div class="alert-banner" id="alertBanner">⚠️ <span id="alertText">资源告警</span></div>
+
+<!-- 工具栏 -->
+<div class="toolbar">
+  <span class="lbl">📊 时间范围</span>
+  <button class="btn on" data-r="1h" aria-pressed="true">1小时</button>
+  <button class="btn" data-r="24h" aria-pressed="false">24小时</button>
+  <button class="btn" data-r="7d" aria-pressed="false">7天</button>
+  <span class="sep"></span>
+  <span class="live" title="实时连接状态"><span class="d"></span><span id="liveText">实时</span></span>
+</div>
+
+<!-- 状态卡片 -->
+<div class="stat-cards" id="stat-cards">
+  <div class="stat-card" id="sc-cpu">
+    <div class="sc-head"><span class="ico">🖥️</span><span class="lbl">处理器</span></div>
+    <div class="sc-val" id="sv-cpu">—%</div>
+    <div class="sc-sub"><span id="ss-cpu">用户 — 系统 —</span></div>
+    <div class="sc-bar"><div class="sc-bar-fill" id="sb-cpu"></div></div>
+    <canvas class="sc-spark" id="sp-cpu" width="48" height="20"></canvas>
+  </div>
+  <div class="stat-card" id="sc-mem">
+    <div class="sc-head"><span class="ico">🧠</span><span class="lbl">内存</span></div>
+    <div class="sc-val" id="sv-mem">—%</div>
+    <div class="sc-sub"><span id="ss-mem">— / —</span></div>
+    <div class="sc-bar"><div class="sc-bar-fill" id="sb-mem"></div></div>
+    <canvas class="sc-spark" id="sp-mem" width="48" height="20"></canvas>
+  </div>
+  <div class="stat-card" id="sc-disk">
+    <div class="sc-head"><span class="ico">💾</span><span class="lbl">系统盘</span></div>
+    <div class="sc-val" id="sv-disk">—%</div>
+    <div class="sc-sub"><span id="ss-disk">— / —</span></div>
+    <div class="sc-bar"><div class="sc-bar-fill" id="sb-disk"></div></div>
+    <canvas class="sc-spark" id="sp-disk" width="48" height="20"></canvas>
+  </div>
+  <div class="stat-card" id="sc-data">
+    <div class="sc-head"><span class="ico">📦</span><span class="lbl">数据盘（/www）</span></div>
+    <div class="sc-val" id="sv-data">—%</div>
+    <div class="sc-sub"><span id="ss-data">— / —</span></div>
+    <div class="sc-bar"><div class="sc-bar-fill" id="sb-data"></div></div>
+    <canvas class="sc-spark" id="sp-data" width="48" height="20"></canvas>
+  </div>
+  <div class="stat-card" id="sc-net">
+    <div class="sc-head"><span class="ico">🌐</span><span class="lbl">网络</span></div>
+    <div class="sc-val" id="sv-net" style="font-size:1.5rem">—</div>
+    <div class="sc-sub"><span id="ss-net">⬇ — ⬆ —</span></div>
+    <div class="sc-bar"><div class="sc-bar-fill" id="sb-net"></div></div>
+    <canvas class="sc-spark" id="sp-net" width="48" height="20"></canvas>
+  </div>
+  <div class="stat-card" id="sc-docker">
+    <div class="sc-head"><span class="ico">🐳</span><span class="lbl">容器</span></div>
+    <div class="sc-val" id="sv-docker" style="font-size:1.5rem">—</div>
+    <div class="sc-sub"><span id="ss-docker">容器 — / 缓存 —</span></div>
+    <div class="sc-bar"><div class="sc-bar-fill" id="sb-docker"></div></div>
+  </div>
+  <div class="stat-card" id="sc-growth">
+    <div class="sc-head"><span class="ico">📈</span><span class="lbl">磁盘增长</span></div>
+    <div class="sc-val" id="sv-growth" style="font-size:1.5rem">—</div>
+    <div class="sc-sub"><span id="ss-growth">监测根盘 / 数据盘 / 容器数据</span></div>
+    <div class="sc-bar"><div class="sc-bar-fill" id="sb-growth"></div></div>
+  </div>
+  <div class="stat-card" id="sc-fresh">
+    <div class="sc-head"><span class="ico">🕒</span><span class="lbl">数据新鲜度</span></div>
+    <div class="sc-val" id="sv-fresh" style="font-size:1.5rem">—</div>
+    <div class="sc-sub"><span id="ss-fresh">状态文件更新时间</span></div>
+    <div class="sc-bar"><div class="sc-bar-fill" id="sb-fresh"></div></div>
+  </div>
+  <div class="stat-card" id="sc-dep">
+    <div class="sc-head"><span class="ico">🛰️</span><span class="lbl">外部质量</span></div>
+    <div class="sc-val" id="sv-dep" style="font-size:1.5rem">—</div>
+    <div class="sc-sub"><span id="ss-dep">域名/连接/加密/总耗时</span></div>
+    <div class="sc-bar"><div class="sc-bar-fill" id="sb-dep"></div></div>
+  </div>
+  <div class="stat-card" id="sc-heal">
+    <div class="sc-head"><span class="ico">🛠️</span><span class="lbl">自愈记录</span></div>
+    <div class="sc-val" id="sv-heal" style="font-size:1.5rem">—</div>
+    <div class="sc-sub"><span id="ss-heal">清理/自愈动作</span></div>
+    <div class="sc-bar"><div class="sc-bar-fill" id="sb-heal"></div></div>
+  </div>
+  <div class="stat-card" id="sc-traffic">
+    <div class="sc-head"><span class="ico">📡</span><span class="lbl">累计流量</span></div>
+    <div class="sc-val" id="sv-traffic" style="font-size:1.45rem">—</div>
+    <div class="sc-sub"><span id="ss-traffic">今日 / 本月 / 开机</span></div>
+    <div class="sc-bar"><div class="sc-bar-fill" id="sb-traffic"></div></div>
+  </div>
+  <div class="stat-card" id="sc-peak">
+    <div class="sc-head"><span class="ico">🚀</span><span class="lbl">带宽峰值</span></div>
+    <div class="sc-val" id="sv-peak" style="font-size:1.45rem">—</div>
+    <div class="sc-sub"><span id="ss-peak">今日 / 本月 下载 上传</span></div>
+    <div class="sc-bar"><div class="sc-bar-fill" id="sb-peak"></div></div>
+  </div>
+  <div class="stat-card" id="sc-dockerres">
+    <div class="sc-head"><span class="ico">📊</span><span class="lbl">容器资源</span></div>
+    <div class="sc-val" id="sv-dockerres" style="font-size:1.45rem">—</div>
+    <div class="sc-sub"><span id="ss-dockerres">处理器 / 内存 / 网络读写</span></div>
+    <div class="sc-bar"><div class="sc-bar-fill" id="sb-dockerres"></div></div>
+  </div>
+  <div class="stat-card" id="sc-dbstat">
+    <div class="sc-head"><span class="ico">🗄️</span><span class="lbl">数据库/预写日志</span></div>
+    <div class="sc-val" id="sv-dbstat" style="font-size:1.45rem">—</div>
+    <div class="sc-sub"><span id="ss-dbstat">数据库 / 预写日志</span></div>
+    <div class="sc-bar"><div class="sc-bar-fill" id="sb-dbstat"></div></div>
+  </div>
+  <div class="stat-card" id="sc-pgconn">
+    <div class="sc-head"><span class="ico">🔌</span><span class="lbl">PostgreSQL 连接</span></div>
+    <div class="sc-val" id="sv-pgconn" style="font-size:1.45rem">—</div>
+    <div class="sc-sub"><span id="ss-pgconn">活跃连接 / 最大连接</span></div>
+    <div class="sc-bar"><div class="sc-bar-fill" id="sb-pgconn"></div></div>
+  </div>
+  <div class="stat-card" id="sc-sub2api">
+    <div class="sc-head"><span class="ico">📦</span><span class="lbl">Sub2API 实时流量</span></div>
+    <div class="sc-val" id="sv-sub2api" style="font-size:1.45rem">—</div>
+    <div class="sc-sub"><span id="ss-sub2api">今日 / 最近1小时 请求与Token</span></div>
+    <div class="sc-bar"><div class="sc-bar-fill" id="sb-sub2api"></div></div>
+  </div>
+  <div class="stat-card" id="sc-apilink">
+    <div class="sc-head"><span class="ico">🧪</span><span class="lbl">API链路</span></div>
+    <div class="sc-val" id="sv-apilink" style="font-size:1.45rem">—</div>
+    <div class="sc-sub"><span id="ss-apilink">local / apius / subus</span></div>
+    <div class="sc-bar"><div class="sc-bar-fill" id="sb-apilink"></div></div>
+  </div>
+  <div class="stat-card" id="sc-baseline">
+    <div class="sc-head"><span class="ico">📏</span><span class="lbl">性能基线</span></div>
+    <div class="sc-val" id="sv-baseline" style="font-size:1.45rem">—</div>
+    <div class="sc-sub"><span id="ss-baseline">链路耗时退化检测</span></div>
+    <div class="sc-bar"><div class="sc-bar-fill" id="sb-baseline"></div></div>
+  </div>
+</div>
+
+<!-- 健康状态栏 -->
+<div class="health-row" id="health-row">
+  <span class="health-badge" id="hb-proxy" title="中转站连通性">🔌 中转站 <span id="ht-proxy">检测中…</span></span>
+  <span class="health-badge" id="hb-docker" title="容器健康与数据目录">🐳 容器 <span id="ht-docker">—</span></span>
+  <span class="health-badge" id="hb-fresh" title="关键数据更新时间">🕒 新鲜度 <span id="ht-fresh">—</span></span>
+  <span class="health-badge" id="hb-dep" title="外部依赖网络质量">🛰️ 外部 <span id="ht-dep">—</span></span>
+  <span class="health-badge" id="hb-heal" title="自愈/清理动作记录">🛠️ 自愈 <span id="ht-heal">—</span></span>
+  <span class="health-badge" id="hb-oom" title="OOM 杀死进程次数">💀 内存杀进程 <span id="ht-oom">—</span></span>
+  <span class="health-badge" id="hb-boot" title="系统启动时间">⏱️ 已运行 <span id="ht-boot">—</span></span>
+</div>
+
+<!-- 每核 CPU -->
+<div class="percore-wrap" id="percore-wrap">
+  <div class="pc-head"><span>🔲</span>每核处理器</div>
+  <div class="percore-row" id="percore-row">
+  </div>
+</div>
+
+<!-- 历史图表网格 -->
+<div class="chart-grid">
+  <div class="chart-card">
+    <div class="ch-head">📈 处理器使用率 &amp; 系统负载</div>
+    <div class="chart" id="ch-cpu-load"></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">📉 内存 &amp; 磁盘使用率</div>
+    <div class="chart" id="ch-mem-disk"></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">📶 网络流量（上传/下载）</div>
+    <div class="chart" id="ch-net"></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">💽 磁盘读写（读取/写入）</div>
+    <div class="chart" id="ch-disk-io"></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">🌐 API 延迟</div>
+    <div class="chart" id="ch-api-latency"></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">⚠️ API 异常数量</div>
+    <div class="chart" id="ch-api-status"></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">🐳 sub2api 资源</div>
+    <div class="chart" id="ch-docker-sub2api"></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">🐳 upstream-hub 资源</div>
+    <div class="chart" id="ch-docker-upstream"></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">🐳 Postgres 资源</div>
+    <div class="chart" id="ch-docker-postgres"></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">🐳 Redis 资源</div>
+    <div class="chart" id="ch-docker-redis"></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">📡 Sub2API 网络流量</div>
+    <div class="chart" id="ch-sub2api-io"></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">✅ HTTP 成功请求</div>
+    <div class="chart" id="ch-http-success"></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">🚦 HTTP 错误请求</div>
+    <div class="chart" id="ch-http-errors"></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">🗄️ 数据库大小</div>
+    <div class="chart" id="ch-db-size"></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">🔌 PostgreSQL 连接数</div>
+    <div class="chart" id="ch-pg-connections"></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">🧾 WAL 大小</div>
+    <div class="chart" id="ch-wal-size"></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">📁 / 增长速度</div>
+    <div class="chart" id="ch-growth-root"></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">📁 /www 增长速度</div>
+    <div class="chart" id="ch-growth-www"></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">📁 /www/docker 增长速度</div>
+    <div class="chart" id="ch-growth-docker"></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">📁 containerd 增长速度</div>
+    <div class="chart" id="ch-growth-containerd"></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">🧭 PSI 压力</div>
+    <div class="chart" id="ch-psi-pressure"></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">💽 磁盘 IOPS</div>
+    <div class="chart" id="ch-disk-iops"></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">⏱️ 磁盘 await 延迟</div>
+    <div class="chart" id="ch-disk-await"></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">📡 TCP 重传</div>
+    <div class="chart" id="ch-tcp-retrans"></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">🧩 systemd failed units</div>
+    <div class="chart" id="ch-systemd-failed"></div>
+  </div>
+</div>
+
+</div>
+
+<script>
+// ── Constants ──
+const K = {g:'#3fb950',y:'#d29922',r:'#f85149',a:'#58a6ff',purple:'#ab47bc',orange:'#ff7043'};
+const SPARK_MAX = 20;
+const HC = {w:48, h:20}; // sparkline canvas size
+const CHART_IDS = ['ch-cpu-load','ch-mem-disk','ch-net','ch-disk-io','ch-api-latency','ch-api-status','ch-docker-sub2api','ch-docker-upstream','ch-docker-postgres','ch-docker-redis','ch-sub2api-io','ch-http-success','ch-http-errors','ch-db-size','ch-pg-connections','ch-wal-size','ch-growth-root','ch-growth-www','ch-growth-docker','ch-growth-containerd','ch-psi-pressure','ch-disk-iops','ch-disk-await','ch-tcp-retrans','ch-systemd-failed'];
+
+// ── State ──
+let refreshInterval = 15;        // seconds; SSE keeps cards realtime, history refreshes calmly
+let countdown = 15;
+let range = '1h';
+let sse = null;
+let charts = {};
+let chartVisibility = {};  // Track which charts are visible
+let sseConnected = false;
+let lastAlertKey = '';
+let alertCooldownUntil = 0;
+let lastHistoryData = null;  // Cache last history data to avoid redundant updates
+let historyUpdateInProgress = false;
+let historyRenderQueued = false;
+const originalTitle = document.title;
+
+// Sparkline data buffers
+let spark = {cpu:[],mem:[],disk:[],data:[],net_rx:[],net_tx:[],swap:[]};
+
+function $(id){return document.getElementById(id)}
+function $$(s){return document.querySelectorAll(s)}
+
+// ── Helpers ──
+function fmtSize(gb){
+  if(gb==null||gb===undefined)return'—';
+  if(gb>=1000)return(gb/1000).toFixed(2)+' TB';
+  return gb.toFixed(2)+' GB';
+}
+function fmtBits(mbps){
+  if(mbps==null||mbps===undefined)return'—';
+  if(mbps>=1000)return(mbps/1000).toFixed(2)+' Gbps';
+  return mbps.toFixed(2)+' Mbps';
+}
+function fmtTime(iso){
+  if(!iso)return'';
+  try{return new Date(iso).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})}catch(e){return iso}
+}
+function fmtAxisTime(iso){
+  if(!iso)return'';
+  try{
+    const d = new Date(iso);
+    if(range === '7d') return d.toLocaleDateString('zh-CN',{month:'2-digit',day:'2-digit'}) + ' ' + d.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+    if(range === '24h') return d.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+    return d.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){return iso}
+}
+function fmtTooltipTime(iso){
+  if(!iso)return'';
+  try{
+    const d = new Date(iso);
+    if(range === '7d') return d.toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+    return d.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  }catch(e){return iso}
+}
+
+function zhState(state){
+  const map = {active:'运行中', inactive:'未运行', failed:'失败', activating:'启动中', deactivating:'停止中', unknown:'未知'};
+  return map[state] || state || '未知';
+}
+
+function thrColor(v){
+  if(v==null)return K.g;
+  return v<60?K.g:v<80?K.y:K.r;
+}
+function thrLevel(v){
+  if(v==null)return'norm';
+  return v<60?'norm':v<80?'warn':'crit';
+}
+
+function easeOutCubic(t){return 1-Math.pow(1-t,3)}
+function animateValue(el,target,formatter,duration=650){
+  if(!el||target==null||target===undefined||Number.isNaN(target))return;
+  const from = Number.isFinite(el._value) ? el._value : target;
+  const start = performance.now();
+  el._target = target;
+  cancelAnimationFrame(el._raf);
+  function step(now){
+    const p=Math.min(1,(now-start)/duration);
+    const v=from+(target-from)*easeOutCubic(p);
+    el._value=v;
+    el.textContent=formatter(v);
+    if(p<1&&el._target===target) el._raf=requestAnimationFrame(step);
+  }
+  el._raf=requestAnimationFrame(step);
+}
+function setBarSmooth(el,val,color){
+  if(!el)return;
+  el.style.width = Math.min(100,Math.max(0,val||0))+'%';
+  el.style.background = color;
+}
+
+// ── Stat Card Update ──
+function updateStatCard(id,val,sub,units){
+  const card=$('sc-'+id), valEl=$('sv-'+id), barEl=$('sb-'+id), subEl=$('ss-'+id);
+  if(!card)return;
+  if(val!=null&&val!==undefined){
+    animateValue(valEl,val,v=>Math.round(v)+'%');
+    valEl.style.color = thrColor(val);
+    setBarSmooth(barEl,val,thrColor(val));
+  }
+  if(subEl&&sub) subEl.textContent = sub;
+  // Card threshold styling
+  card.classList.remove('warn','crit');
+  if(val!=null){
+    if(val>90) card.classList.add('crit');
+    else if(val>80) card.classList.add('warn');
+  }
+  // Left border colors
+  card.style.borderLeftColor = thrColor(val);
+}
+function updateNetCard(rx,tx){
+  const card=$('sc-net'), barEl=$('sb-net'), valEl=$('sv-net'), subEl=$('ss-net');
+  if(!card)return;
+  const val = Math.max(rx||0,tx||0);
+  const prevRx = Number.isFinite(valEl._rx) ? valEl._rx : rx;
+  const prevTx = Number.isFinite(valEl._tx) ? valEl._tx : tx;
+  const start = performance.now();
+  cancelAnimationFrame(valEl._raf);
+  function step(now){
+    const p=Math.min(1,(now-start)/650);
+    const k=easeOutCubic(p);
+    const curRx=prevRx+((rx||0)-prevRx)*k;
+    const curTx=prevTx+((tx||0)-prevTx)*k;
+    valEl.textContent='↓'+fmtBits(curRx).replace(' Mbps','')+' ↑'+fmtBits(curTx).replace(' Mbps','');
+    if(subEl) subEl.textContent='⬇ '+fmtBits(curRx)+' ⬆ '+fmtBits(curTx);
+    if(p<1) valEl._raf=requestAnimationFrame(step);
+    else { valEl._rx=rx||0; valEl._tx=tx||0; }
+  }
+  valEl._raf=requestAnimationFrame(step);
+  const pct = Math.min(100, val * 5); // scale Mbps to percentage-style bar
+  const color = val>800?K.r:val>500?K.y:K.g;
+  setBarSmooth(barEl,pct,color);
+  card.style.borderLeftColor = color;
+}
+function updateSwapCard(sw){
+  if(!sw||sw.percent==null)return;
+  const card=$('sc-swap'), valEl=$('sv-swap'), barEl=$('sb-swap'), subEl=$('ss-swap');
+  if(!card)return;
+  animateValue(valEl,sw.percent,v=>Math.round(v)+'%');
+  valEl.style.color = sw.percent>50?K.r:sw.percent>20?K.y:K.g;
+  setBarSmooth(barEl,sw.percent,sw.percent>50?K.r:sw.percent>20?K.y:K.g);
+  if(subEl) subEl.textContent = fmtSize(sw.used_gb)+' / '+fmtSize(sw.total_gb);
+  card.style.borderLeftColor = sw.percent>50?K.r:sw.percent>20?K.y:K.g;
+}
+function updateConntrackCard(ct){
+  if(!ct||ct.percent==null)return;
+  const card=$('sc-conn'), valEl=$('sv-conn'), barEl=$('sb-conn'), subEl=$('ss-conn');
+  if(!card)return;
+  const p = ct.percent;
+  animateValue(valEl,p,v=>v.toFixed(1)+'%');
+  valEl.style.color = p>80?K.r:p>50?K.y:K.g;
+  setBarSmooth(barEl,Math.min(100,p),p>80?K.r:p>50?K.y:K.g);
+  if(subEl) subEl.textContent = (ct.count||0)+' / '+(ct.max||0);
+  card.style.borderLeftColor = p>80?K.r:p>50?K.y:K.g;
+}
+function updateDockerCard(dk){
+  const card=$('sc-docker'), valEl=$('sv-docker'), barEl=$('sb-docker'), subEl=$('ss-docker');
+  if(!card||!dk)return;
+  const expected = dk.expected_count || 0;
+  const healthy = dk.healthy_count || 0;
+  const cache = dk.build_cache_gb ?? 0;
+  const reclaim = dk.build_cache_reclaimable_gb ?? 0;
+  const ok = dk.available && dk.root_ok && expected > 0 && healthy === expected;
+  valEl.textContent = ok ? '正常' : (dk.available ? healthy + '/' + expected : '离线');
+  valEl.style.color = ok ? K.g : K.r;
+  if(subEl) subEl.textContent = '容器 '+healthy+'/'+expected+' · 缓存 '+fmtSize(cache)+' · 可清理 '+fmtSize(reclaim)+' · '+(dk.root_dir||'—');
+  const score = ok ? Math.min(100, Math.max(5, cache * 10)) : 100;
+  const color = !ok ? K.r : cache > 10 ? K.r : cache > 5 ? K.y : K.g;
+  setBarSmooth(barEl, score, color);
+  card.style.borderLeftColor = color;
+  card.classList.remove('warn','crit');
+  if(!ok || cache > 10) card.classList.add('crit');
+  else if(cache > 5) card.classList.add('warn');
+}
+function updateGrowthCard(pg){
+  const card=$('sc-growth'), valEl=$('sv-growth'), barEl=$('sb-growth'), subEl=$('ss-growth');
+  if(!card||!pg||!pg.paths)return;
+  const paths = pg.paths || [];
+  let maxGrowth = 0;
+  paths.forEach(p=>{ maxGrowth = Math.max(maxGrowth, p.growth_gb_per_hour || 0); });
+  valEl.textContent = (maxGrowth >= 0 ? '+' : '') + maxGrowth.toFixed(2) + ' GB/h';
+  const color = maxGrowth > 2 ? K.r : maxGrowth > 0.5 ? K.y : K.g;
+  valEl.style.color = color;
+  setBarSmooth(barEl, Math.min(100, Math.max(0, maxGrowth * 25)), color);
+  if(subEl) subEl.textContent = paths.map(p => p.path + ' ' + fmtSize(p.used_gb) + ' ' + (p.growth_gb_per_hour>=0?'+':'') + (p.growth_gb_per_hour||0).toFixed(2) + '/h').join(' · ');
+  card.style.borderLeftColor = color;
+  card.classList.remove('warn','crit');
+  if(maxGrowth > 2) card.classList.add('crit');
+  else if(maxGrowth > 0.5) card.classList.add('warn');
+}
+
+function fmtAge(seconds){
+  if(seconds==null)return'—';
+  if(seconds<60)return Math.round(seconds)+'秒';
+  if(seconds<3600)return Math.round(seconds/60)+'分钟';
+  if(seconds<86400)return Math.round(seconds/3600)+'小时';
+  return Math.round(seconds/86400)+'天';
+}
+function updateFreshnessCard(fr){
+  const card=$('sc-fresh'), valEl=$('sv-fresh'), barEl=$('sb-fresh'), subEl=$('ss-fresh');
+  if(!card||!fr||!fr.items)return;
+  const stale = fr.stale_count || 0;
+  const maxAge = Math.max(...fr.items.map(i=>i.age_seconds||0),0);
+  valEl.textContent = stale ? stale+' 项过期' : '正常';
+  const color = stale ? K.y : K.g;
+  valEl.style.color = color;
+  setBarSmooth(barEl, stale ? Math.min(100, stale*25) : 5, color);
+  if(subEl) subEl.textContent = fr.items.map(i => i.name + ' ' + (i.exists?fmtAge(i.age_seconds):'缺失')).join(' · ');
+  card.style.borderLeftColor = color;
+  card.classList.remove('warn','crit');
+  if(stale) card.classList.add('warn');
+}
+function updateDependencyCard(dep){
+  const card=$('sc-dep'), valEl=$('sv-dep'), barEl=$('sb-dep'), subEl=$('ss-dep');
+  if(!card||!dep||!dep.targets)return;
+  const targets = dep.targets || [];
+  const okCount = targets.filter(t=>t.ok).length;
+  const worst = Math.max(...targets.map(t=>t.total_ms||0),0);
+  const color = okCount === targets.length ? (worst>3000?K.y:K.g) : K.r;
+  valEl.textContent = okCount + '/' + targets.length;
+  valEl.style.color = color;
+  setBarSmooth(barEl, Math.min(100, worst/50), color);
+  if(subEl) subEl.textContent = targets.map(t => t.name + ' ' + (t.status_code||0) + ' 域名 ' + (t.dns_ms??'—') + 'ms 连接 ' + (t.connect_ms??'—') + 'ms TLS ' + (t.tls_ms??'—') + 'ms 总计 ' + (t.total_ms??'—') + 'ms').join(' · ');
+  card.style.borderLeftColor = color;
+  card.classList.remove('warn','crit');
+  if(okCount !== targets.length) card.classList.add('crit');
+  else if(worst > 3000) card.classList.add('warn');
+}
+function updateHealingCard(heal){
+  const card=$('sc-heal'), valEl=$('sv-heal'), barEl=$('sb-heal'), subEl=$('ss-heal');
+  if(!card||!heal)return;
+  const released = heal.released_gb_today || 0;
+  const timerOk = heal.timer?.active_state === 'active';
+  const color = timerOk ? K.g : K.r;
+  valEl.textContent = released.toFixed(2) + ' GB';
+  valEl.style.color = color;
+  setBarSmooth(barEl, Math.min(100, Math.max(5, released * 10)), color);
+  const last = heal.last_cleanup ? (heal.last_cleanup.time + ' 释放 ' + (heal.last_cleanup.released_gb||0).toFixed(2) + 'GB') : '今日暂无清理';
+  if(subEl) subEl.textContent = '定时器 ' + zhState(heal.timer?.active_state||'unknown') + ' · ' + last;
+  card.style.borderLeftColor = color;
+  card.classList.remove('warn','crit');
+  if(!timerOk) card.classList.add('crit');
+}
+function fmtTrafficGb(gb){
+  if(gb==null||gb===undefined)return'—';
+  if(gb>=1024)return(gb/1024).toFixed(2)+' TB';
+  return Number(gb).toFixed(gb>=10?1:2)+' GB';
+}
+function updateTrafficCard(net){
+  const card=$('sc-traffic'), valEl=$('sv-traffic'), barEl=$('sb-traffic'), subEl=$('ss-traffic');
+  const t=net?.totals; if(!card||!t)return;
+  const today=(t.today_rx_gb||0)+(t.today_tx_gb||0);
+  const month=(t.month_rx_gb||0)+(t.month_tx_gb||0);
+  const boot=(t.boot_rx_gb||0)+(t.boot_tx_gb||0);
+  valEl.textContent=fmtTrafficGb(today);
+  valEl.style.color=K.a;
+  if(subEl) subEl.textContent='今日 ↓'+fmtTrafficGb(t.today_rx_gb)+' ↑'+fmtTrafficGb(t.today_tx_gb)+' · 本月 '+fmtTrafficGb(month)+' · 开机 '+fmtTrafficGb(boot);
+  setBarSmooth(barEl, Math.min(100, today*2), K.a);
+  card.style.borderLeftColor=K.a;
+}
+function updatePeakCard(net){
+  const card=$('sc-peak'), valEl=$('sv-peak'), barEl=$('sb-peak'), subEl=$('ss-peak');
+  const t=net?.totals; if(!card||!t)return;
+  const dayPeak=Math.max(t.day_rx_peak_mbps||0,t.day_tx_peak_mbps||0);
+  const monthPeak=Math.max(t.month_rx_peak_mbps||0,t.month_tx_peak_mbps||0);
+  const color=dayPeak>500?K.r:dayPeak>100?K.y:K.g;
+  valEl.textContent=fmtBits(dayPeak);
+  valEl.style.color=color;
+  if(subEl) subEl.textContent='今日 ↓'+fmtBits(t.day_rx_peak_mbps||0)+' ↑'+fmtBits(t.day_tx_peak_mbps||0)+' · 本月峰值 '+fmtBits(monthPeak);
+  setBarSmooth(barEl, Math.min(100, dayPeak/10), color);
+  card.style.borderLeftColor=color;
+}
+function updateDockerResourceCard(res){
+  const card=$('sc-dockerres'), valEl=$('sv-dockerres'), barEl=$('sb-dockerres'), subEl=$('ss-dockerres');
+  if(!card||!res)return;
+  const cpu=res.total_cpu_percent||0, mem=res.total_mem_mb||0, containers=res.containers||[];
+  const color=cpu>400?K.r:cpu>200?K.y:K.g;
+  valEl.textContent=cpu.toFixed(1)+'%';
+  valEl.style.color=color;
+  const top=containers.slice().sort((a,b)=>(b.cpu_percent||0)-(a.cpu_percent||0)).slice(0,3).map(c=>c.name+' '+(c.cpu_percent||0).toFixed(1)+'%/'+(c.mem_mb||0).toFixed(0)+'MB').join(' · ');
+  if(subEl) subEl.textContent='内存 '+mem.toFixed(0)+'MB · '+(top||'暂无容器资源数据');
+  setBarSmooth(barEl, Math.min(100,cpu/5), color);
+  card.style.borderLeftColor=color;
+}
+function updateSub2ApiCard(sub){
+  const card=$('sc-sub2api'), valEl=$('sv-sub2api'), barEl=$('sb-sub2api'), subEl=$('ss-sub2api');
+  if(!card||!sub)return;
+  if(!sub.ok){
+    valEl.textContent='—';
+    valEl.style.color=K.r;
+    if(subEl) subEl.textContent='查询失败';
+    setBarSmooth(barEl, 0, K.r);
+    card.style.borderLeftColor=K.r;
+    card.classList.add('crit');
+    return;
+  }
+  const rxRate = sub.rx_rate_kbps || 0;
+  const txRate = sub.tx_rate_kbps || 0;
+  const totalRx = sub.total_rx_mb || 0;
+  const totalTx = sub.total_tx_mb || 0;
+  
+  const rxStr = rxRate > 1024 ? (rxRate / 1024).toFixed(2) + ' MB/s' : rxRate.toFixed(1) + ' KB/s';
+  const txStr = txRate > 1024 ? (txRate / 1024).toFixed(2) + ' MB/s' : txRate.toFixed(1) + ' KB/s';
+  const totalRxStr = totalRx > 1024 ? (totalRx / 1024).toFixed(2) + ' GB' : totalRx.toFixed(0) + ' MB';
+  const totalTxStr = totalTx > 1024 ? (totalTx / 1024).toFixed(2) + ' GB' : totalTx.toFixed(0) + ' MB';
+  
+  const color=rxRate>1024?K.g:K.y;
+  valEl.textContent=`↓${rxStr} / ↑${txStr}`;
+  valEl.style.color=color;
+  
+  if(subEl) subEl.textContent=`累计: 入 ${totalRxStr} / 出 ${totalTxStr}`;
+  
+  setBarSmooth(barEl, Math.min(100, rxRate/50), color);
+  card.style.borderLeftColor=color;
+  card.classList.remove('warn','crit');
+}
+function updateDatabaseCard(db){
+  const card=$('sc-dbstat'), valEl=$('sv-dbstat'), barEl=$('sb-dbstat'), subEl=$('ss-dbstat');
+  if(!card||!db)return;
+  const wal=db.total_wal_mb||0, total=db.total_db_mb||0;
+  const color=!db.ok?K.r:wal>128?K.r:wal>32?K.y:K.g;
+  valEl.textContent=total.toFixed(1)+' MB';
+  valEl.style.color=color;
+  const worst=(db.items||[]).slice().sort((a,b)=>(b.wal_mb||0)-(a.wal_mb||0))[0];
+  if(subEl) subEl.textContent='预写日志 '+wal.toFixed(2)+'MB · '+(worst?worst.name+' 预写日志 '+(worst.wal_mb||0).toFixed(2)+'MB':'正常');
+  setBarSmooth(barEl, Math.min(100,wal), color);
+  card.style.borderLeftColor=color;
+  card.classList.remove('warn','crit');
+  if(!db.ok||wal>128) card.classList.add('crit');
+  else if(wal>32) card.classList.add('warn');
+}
+function updatePgConnCard(pg){
+  const card=$('sc-pgconn'), valEl=$('sv-pgconn'), barEl=$('sb-pgconn'), subEl=$('ss-pgconn');
+  if(!card||!pg)return;
+  const active=pg.active||0, max=pg.max||100;
+  const pct=(active/max)*100;
+  const color=pct>=90?K.r:pct>=70?K.y:K.g;
+  valEl.textContent=active+' / '+max;
+  valEl.style.color=color;
+  if(subEl) subEl.textContent='使用率 '+pct.toFixed(1)+'%';
+  setBarSmooth(barEl, Math.min(100,pct), color);
+  card.style.borderLeftColor=color;
+  card.classList.remove('warn','crit');
+  if(pct>=90) card.classList.add('crit');
+  else if(pct>=70) card.classList.add('warn');
+}
+function updateApiLinkCard(api){
+  const card=$('sc-apilink'), valEl=$('sv-apilink'), barEl=$('sb-apilink'), subEl=$('ss-apilink');
+  if(!card||!api||!api.items)return;
+  const items=api.items||[];
+  const sum=api.summary||{};
+  const worst=Math.max(...items.map(i=>i.latency_ms||0),0);
+  const bad=sum.bad||0, warn=sum.warn||0;
+  const color=bad?K.r:warn?K.y:K.g;
+  valEl.textContent=(sum.ok||0)+'/'+(sum.count||items.length);
+  valEl.style.color=color;
+  if(subEl) subEl.textContent=items.map(i=>i.name+' '+(i.status_code||0)+' '+(i.latency_ms??'—')+'ms').join(' · ');
+  setBarSmooth(barEl, Math.min(100,worst/12), color);
+  card.style.borderLeftColor=color;
+  card.classList.remove('warn','crit');
+  if(bad) card.classList.add('crit'); else if(warn) card.classList.add('warn');
+}
+function updateBaselineCard(api){
+  const card=$('sc-baseline'), valEl=$('sv-baseline'), barEl=$('sb-baseline'), subEl=$('ss-baseline');
+  if(!card||!api)return;
+  const items=api.items||[];
+  const worst=items.slice().sort((a,b)=>(b.degradation_ratio||0)-(a.degradation_ratio||0))[0];
+  const ratio=worst?.degradation_ratio||1;
+  const color=ratio>=3?K.r:ratio>=2?K.y:K.g;
+  valEl.textContent=ratio.toFixed(2)+'×';
+  valEl.style.color=color;
+  if(subEl) subEl.textContent=worst?`${worst.name} 当前 ${worst.latency_ms}ms · 基线 ${worst.baseline_avg_ms}ms · 样本 ${api.baseline?.window_samples||0}`:'暂无基线';
+  setBarSmooth(barEl, Math.min(100, ratio*25), color);
+  card.style.borderLeftColor=color;
+  card.classList.remove('warn','crit');
+  if(ratio>=3) card.classList.add('crit'); else if(ratio>=2) card.classList.add('warn');
+}
+function updateServiceHealthBadge(sv){
+  if(!sv)return;
+  let el=$('hb-service');
+  if(!el){
+    const row=$('health-row');
+    if(row){
+      const span=document.createElement('span');
+      span.className='health-badge'; span.id='hb-service'; span.title='系统服务和本地网页服务健康';
+      span.innerHTML='🧩 服务 <span id="ht-service">—</span>';
+      row.insertBefore(span,row.firstChild);
+      el=span;
+    }
+  }
+  const txt=$('ht-service'); if(!el||!txt)return;
+  el.classList.remove('ok','warn','bad');
+  el.classList.add(sv.ok?'ok':'bad');
+  txt.textContent=(sv.ok_count||0)+'/'+(sv.total||0);
+}
+function updateHealthBadges(m){
+  // Proxy
+  const px = m.proxy;
+  if(px){
+    const pb=$('hb-proxy'), pt=$('ht-proxy');
+    if(pb){
+      pb.classList.remove('ok','warn','bad');
+      if(px.reachable) {
+        pb.classList.add('ok');
+        pt.textContent = px.latency_ms+'ms';
+      } else {
+        pb.classList.add('bad');
+        pt.textContent = '不可达';
+      }
+    }
+  }
+  // Freshness / Dependency / Self-healing badges
+  const fr = m.data_freshness;
+  if(fr){
+    const fb=$('hb-fresh'), ft=$('ht-fresh');
+    if(fb){ fb.classList.remove('ok','warn','bad'); fb.classList.add(fr.ok?'ok':'warn'); ft.textContent = fr.ok?'正常':((fr.stale_count||0)+'项过期'); }
+  }
+  const dep = m.dependency_quality;
+  if(dep){
+    const eb=$('hb-dep'), et=$('ht-dep');
+    if(eb){ const ok=(dep.targets||[]).filter(t=>t.ok).length, total=(dep.targets||[]).length; eb.classList.remove('ok','warn','bad'); eb.classList.add(dep.ok?'ok':'bad'); et.textContent = ok+'/'+total; }
+  }
+  const heal = m.self_healing;
+  if(heal){
+    const hb=$('hb-heal'), ht=$('ht-heal');
+    if(hb){ hb.classList.remove('ok','warn','bad'); hb.classList.add(heal.ok?'ok':'bad'); ht.textContent = (heal.released_gb_today||0).toFixed(1)+'G'; }
+  }
+  // Docker
+  const dk = m.docker;
+  if(dk){
+    const db=$('hb-docker'), dt=$('ht-docker');
+    if(db){
+      db.classList.remove('ok','warn','bad');
+      if(dk.ok){ db.classList.add('ok'); dt.textContent = (dk.healthy_count||0)+'/'+(dk.expected_count||0); }
+      else { db.classList.add('bad'); dt.textContent = dk.available ? ((dk.healthy_count||0)+'/'+(dk.expected_count||0)) : '离线'; }
+    }
+  }
+  // OOM
+  const oom = m.oom_count;
+  if(oom != null){
+    const ob=$('hb-oom'), ot=$('ht-oom');
+    if(ob){
+      ob.classList.remove('ok','warn','bad');
+      ob.classList.add(oom>0?'bad':'ok');
+      ot.textContent = oom>0?(''+oom+' 次'):'无';
+    }
+  }
+  // Boot time
+  if(m.boot_time){
+    const bb=$('hb-boot'), bt=$('ht-boot');
+    if(bb){
+      const delta = (Date.now()/1000) - m.boot_time;
+      const d = Math.floor(delta/86400), h = Math.floor((delta%86400)/3600), min = Math.floor((delta%3600)/60);
+      bt.textContent = d>0?(d+'天 '+h+'时'):(h+'时 '+min+'分');
+    }
+  }
+}
+function checkResourceAlerts(cpu, mem, disk) {
+  const alerts = [];
+  if (cpu > 90) alerts.push('处理器 ' + Math.round(cpu) + '%');
+  if (mem > 90) alerts.push('内存 ' + Math.round(mem) + '%');
+  if (disk > 85) alerts.push('磁盘 ' + Math.round(disk) + '%');
+  const banner = $('alertBanner');
+  const textEl = $('alertText');
+  if (alerts.length) {
+    const msg = '资源告警：' + alerts.join(' / ');
+    if (banner) banner.classList.add('on');
+    if (textEl) textEl.textContent = msg;
+    document.title = '🔴 ' + msg;
+    const key = alerts.join('|');
+    const now = Date.now();
+    if (key !== lastAlertKey || now > alertCooldownUntil) {
+      showErr(msg);
+      lastAlertKey = key;
+      alertCooldownUntil = now + 60000;
+    }
+  } else {
+    if (banner) banner.classList.remove('on');
+    document.title = originalTitle;
+  }
+}
+
+function showErr(msg) {
+  const el = $('err');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('on');
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => el.classList.remove('on'), 4500);
+}
+
+
+// ── Sparkline (Canvas) ──
+function drawSparkline(canvasId, data, color, maxVal){
+  const c=$(canvasId); if(!c||!data||data.length<2)return;
+  const ctx=c.getContext('2d');
+  ctx.clearRect(0,0,HC.w,HC.h);
+  const max = maxVal || Math.max(...data,1);
+  const min = Math.min(...data,0);
+  const range = max-min || 1;
+  const pad=2, w=HC.w-pad*2, h=HC.h-pad*2;
+  ctx.beginPath();
+  ctx.strokeStyle = color||K.a;
+  ctx.lineWidth = 1.2;
+  ctx.lineJoin = 'round';
+  for(let i=0;i<data.length;i++){
+    const x = pad + (i/(data.length-1))*w;
+    const y = pad + h - ((data[i]-min)/range)*h;
+    if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+  // Optional fill
+  ctx.lineTo(pad+w, pad+h); ctx.lineTo(pad, pad+h); ctx.closePath();
+  ctx.fillStyle = (color||K.a)+'15';
+  ctx.fill();
+}
+
+function pushSpark(key,val){
+  spark[key].push(val);
+  if(spark[key].length>SPARK_MAX) spark[key].shift();
+}
+
+function redrawSparklines(){
+  if(spark.cpu.length>1) drawSparkline('sp-cpu',spark.cpu,thrColor(spark.cpu[spark.cpu.length-1]));
+  if(spark.mem.length>1) drawSparkline('sp-mem',spark.mem,thrColor(spark.mem[spark.mem.length-1]));
+  if(spark.disk.length>1) drawSparkline('sp-disk',spark.disk,thrColor(spark.disk[spark.disk.length-1]));
+  if(spark.data.length>1) drawSparkline('sp-data',spark.data,thrColor(spark.data[spark.data.length-1]));
+  if(spark.net_rx.length>1){
+    // For network sparkline, show combined (rx+tx)/2 or just rx
+    const combined = spark.net_rx.map((v,i)=>v+(spark.net_tx[i]||0));
+    const maxC = Math.max(...combined,1);
+    // Scale for visual: max 5 Mbps
+    const scaled = spark.net_rx.map((v,i)=>Math.min(100,(v+(spark.net_tx[i]||0))/maxC*100));
+    drawSparkline('sp-net',scaled,K.a);
+  }
+}
+
+// ── Per-Core CPU ──
+function updatePerCore(cores){
+  const row=$('percore-row'); if(!row)return;
+  const nc = cores.length;
+  let html = '';
+  cores.forEach((c,i)=>{
+    const p=c.percent, h=Math.max(4,Math.round(p/100*60));
+    const color = p<40?K.g:p<70?K.y:K.r;
+    html += '<div class="percore-item">'+
+      '<div class="percore-bar-wrap"><div class="percore-bar" style="height:'+h+'px;background:'+color+'"></div></div>'+
+      '<div class="percore-pct">'+Math.round(p)+'%</div>'+
+      '<div class="percore-label">C'+i+'</div></div>';
+  });
+  row.innerHTML = html;
+}
+
+// ── ECharts Init ──
+function scheduleHistoryRender(){
+  if(!lastHistoryData || historyRenderQueued) return;
+  historyRenderQueued = true;
+  requestAnimationFrame(()=>{
+    historyRenderQueued = false;
+    updateHistory(lastHistoryData);
+  });
+}
+
+function initCharts(){
+  // Setup IntersectionObserver for lazy chart rendering
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const id = entry.target.id;
+      chartVisibility[id] = entry.isIntersecting;
+      
+      // If chart is visible but not initialized, create it
+      if (entry.isIntersecting && !charts[id]) {
+        const d = $(id);
+        if (d) {
+          charts[id] = echarts.init(d, null, {useDirtyRect:true, renderer:'canvas'});
+          // If we have cached data, schedule one batched render instead of
+          // re-rendering every chart when a scroll reveals multiple cards.
+          scheduleHistoryRender();
+        }
+      }
+    });
+  }, {rootMargin: '50px'});
+  
+  // Observe all chart containers
+  CHART_IDS.forEach(id => {
+    const d = $(id);
+    if (d) {
+      observer.observe(d);
+      chartVisibility[id] = false;
+    }
+  });
+  
+  // Store observer for cleanup
+  window._chartObserver = observer;
+}
+
+function niceRateMax(values,floor=1){
+  const nums = values.flat().filter(v=>Number.isFinite(Number(v))).map(Number);
+  const raw = Math.max(floor, ...nums, 0) * 1.18;
+  if(raw <= 2) return Math.ceil(raw * 10) / 10;
+  if(raw <= 10) return Math.ceil(raw);
+  if(raw <= 100) return Math.ceil(raw / 5) * 5;
+  return Math.ceil(raw / 25) * 25;
+}
+function fmtChartValue(value,unit,decimals=2){
+  if(value==null||value===undefined||Number.isNaN(Number(value)))return'—';
+  const n = Number(value);
+  if(unit === '%') return n.toFixed(decimals) + '%';
+  if(unit === 'Mbps') return n.toFixed(decimals) + ' Mbps';
+  if(unit === 'MB/s') return n.toFixed(decimals) + ' MB/s';
+  if(unit === 'ops/s') return n.toFixed(decimals) + ' ops/s';
+  if(unit === 'ms') return n.toFixed(decimals) + ' ms';
+  if(unit === 'load') return n.toFixed(decimals);
+  return n.toFixed(decimals) + (unit ? ' ' + unit : '');
+}
+function chartYAxis(opts,seriesList){
+  if(opts.yAxes) return opts.yAxes;
+  const unit = opts.unit || seriesList[0]?.unit || '';
+  const isPercent = opts.percent || unit === '%';
+  return {
+    type:'value',
+    min:isPercent ? 0 : 0,
+    max:isPercent ? 100 : (opts.autoMax ? niceRateMax(seriesList.map(s=>s.data||[]), opts.minMax || 1) : null),
+    scale:!isPercent && !opts.autoMax,
+    axisLabel:{
+      color:'#7d8590',
+      fontSize:10,
+      margin:8,
+      formatter:v=>unit && unit !== 'load' ? fmtChartValue(v,unit,0) : Number(v).toFixed(opts.axisDecimals ?? 0)
+    },
+    axisLine:{show:false},
+    axisTick:{show:false},
+    splitLine:{lineStyle:{color:'rgba(139,148,158,.14)',type:'dashed'}}
+  };
+}
+function lineOpt(ts,seriesList,opts={}){
+  const labels = ts.map(fmtAxisTime);
+  const labelInterval = range === '7d' ? Math.max(0, Math.floor(ts.length/5)-1) : Math.max(0, Math.floor(ts.length/6)-1);
+  return {
+    backgroundColor:'transparent',
+    animation:true,
+    animationDuration:700,
+    animationEasing:'cubicOut',
+    animationDurationUpdate:700,
+    animationEasingUpdate:'cubicOut',
+    color:seriesList.map(s=>s.color),
+    grid:{top:34,right:opts.right ?? 18,bottom:range==='7d'?44:32,left:opts.left ?? 54,containLabel:false},
+    tooltip:{
+      trigger:'axis',
+      confine:true,
+      appendToBody:true,
+      backgroundColor:'rgba(13,17,23,.96)',
+      borderColor:'rgba(88,166,255,.35)',
+      borderWidth:1,
+      padding:[8,10],
+      extraCssText:'box-shadow:0 10px 30px rgba(0,0,0,.35);border-radius:8px;backdrop-filter:blur(8px);',
+      textStyle:{color:'#e6edf3',fontSize:12,lineHeight:18},
+      axisPointer:{type:'line',lineStyle:{color:'rgba(88,166,255,.45)',width:1,type:'dashed'}},
+      formatter:(params)=>{
+        const list = Array.isArray(params) ? params : [params];
+        const idx = list[0]?.dataIndex ?? 0;
+        let html = '<div style="margin-bottom:6px;color:#8b949e;font-weight:600">' + fmtTooltipTime(ts[idx]) + '</div>';
+        list.forEach(p=>{
+          const meta = seriesList[p.seriesIndex] || {};
+          const unit = meta.unit || opts.unit || '';
+          const decimals = meta.decimals ?? opts.decimals ?? 2;
+          const value = meta.tooltipFactor ? Number(p.value) * meta.tooltipFactor : p.value;
+          html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:18px;min-width:150px">' +
+            '<span>' + p.marker + p.seriesName + '</span>' +
+            '<b style="color:#e6edf3">' + fmtChartValue(value,unit,decimals) + '</b></div>';
+        });
+        return html;
+      }
+    },
+    xAxis:{
+      type:'category',
+      data:labels,
+      boundaryGap:false,
+      axisLine:{lineStyle:{color:'rgba(139,148,158,.24)'}},
+      axisTick:{show:false},
+      axisLabel:{color:'#7d8590',fontSize:10,interval:labelInterval,rotate:range==='7d'?24:0,margin:10},
+      splitLine:{show:false}
+    },
+    yAxis:chartYAxis(opts,seriesList),
+    legend:{
+      data:seriesList.map(s=>s.name),
+      type:'scroll',
+      top:2,
+      right:6,
+      itemWidth:14,
+      itemHeight:8,
+      icon:'roundRect',
+      textStyle:{color:'#c9d1d9',fontSize:10},
+      inactiveColor:'#484f58',
+      pageIconColor:'#8b949e',
+      pageTextStyle:{color:'#8b949e'}
+    },
+    series:seriesList.map(s=>({
+      name:s.name,data:s.data,type:'line',smooth:true,symbol:'none',
+      yAxisIndex:s.yAxisIndex || 0,
+      showSymbol:false,
+      connectNulls:true,
+      emphasis:{focus:'series',lineStyle:{width:3}},
+      lineStyle:{color:s.color,width:s.width || 2.4,shadowColor:s.color+'55',shadowBlur:5,shadowOffsetY:2},
+      areaStyle:s.noArea ? undefined : {opacity:1,color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:s.color+'38'},{offset:.72,color:s.color+'10'},{offset:1,color:s.color+'00'}])}
+    }))
+  };
+}
+
+async function loadJSON(u){const r=await fetch(u);if(!r.ok)throw Error('网页请求失败 '+r.status);return r.json()}
+async function loadLatest(){return loadJSON('/api/system/metrics/latest')}
+async function loadHistory(){return loadJSON('/api/system/metrics/history?range='+range)}
+async function loadStatus(){return loadJSON('/api/system/status')}
+async function loadDetailed(){return loadJSON('/api/system/metrics/detailed')}
+
+// ── Update functions ──
+function updateLatest(d){
+  if(!d)return;
+  const m=d;
+  const cp=m.cpu?.percent??0, mp=m.memory?.percent??0, dp=m.disk?.percent??0;
+  const dp2=m.data_disk?.percent??0;
+  const mu=m.memory?.used_gb??0, mt=m.memory?.total_gb??0;
+  const du=m.disk?.used_gb??0, dd=m.disk?.total_gb??0;
+  const d2u=m.data_disk?.used_gb??0, d2t=m.data_disk?.total_gb??0;
+  const nr=m.network?.rx_rate_mbps??0, nt=m.network?.tx_rate_mbps??0;
+  const dr=m.disk?.read_rate_mbps??0, dw=m.disk?.write_rate_mbps??0;
+  const l1=m.load?.load_1;
+  const cores=m.cpu?.cores??4;
+
+  // Swap
+  updateSwapCard(m.swap);
+  // Conntrack
+  updateConntrackCard(m.conntrack);
+  // FD
+  // Docker and disk growth
+  updateDockerCard(m.docker);
+  updateGrowthCard(m.path_growth);
+  updateFreshnessCard(m.data_freshness);
+  updateDependencyCard(m.dependency_quality);
+  updateHealingCard(m.self_healing);
+  updateTrafficCard(m.network);
+  updatePeakCard(m.network);
+  updateDockerResourceCard(m.docker_resources);
+  updateDatabaseCard(m.database_status);
+  updatePgConnCard(m.postgres_connections);
+  updateSub2ApiCard(m.sub2api_io);
+  updateApiLinkCard(m.api_links);
+  updateBaselineCard(m.api_links);
+  updateServiceHealthBadge(m.service_health);
+  // Health badges
+  updateHealthBadges(m);
+
+  updateStatCard('cpu',cp,'用户 — 系统 —');
+  updateStatCard('mem',mp,fmtSize(mu)+' / '+fmtSize(mt));
+  updateStatCard('disk',dp,fmtSize(du)+' / '+fmtSize(dd)+' · R '+dr.toFixed(2)+' MB/s W '+dw.toFixed(2)+' MB/s');
+  updateStatCard('data',dp2,fmtSize(d2u)+' / '+fmtSize(d2t));
+  updateNetCard(nr,nt);
+  checkResourceAlerts(cp, mp, dp);
+
+  // Push to sparklines
+  pushSpark('cpu',cp); pushSpark('mem',mp); pushSpark('disk',dp); pushSpark('data',dp2);
+  pushSpark('net_rx',nr); pushSpark('net_tx',nt);
+  if(m.swap?.percent!=null) pushSpark('swap',m.swap.percent);
+  redrawSparklines();
+}
+
+function updateHistory(d){
+  if(!d)return;
+  const ts=d.timestamps||[];
+  if(!ts.length)return;
+  
+  // Cache the data for lazy-loaded charts
+  lastHistoryData = d;
+  
+  // Skip if update already in progress
+  if (historyUpdateInProgress) return;
+  historyUpdateInProgress = true;
+  
+  try {
+    const cv=d.cpu||[],mv=d.memory||[],dv=d.disk||[],dv2=d.data_disk||[],nr=d.network_rx||[],nt=d.network_tx||[];
+    const dr=d.disk_read||[],dw=d.disk_write||[];
+    const sw=d.swap||[],ct=d.conntrack||[];
+    const l1=d.load_1||[];
+    const apiLocal=d.api_local_latency||[],apiApius=d.api_apius_latency||[],apiSubus=d.api_subus_latency||[];
+    const apiWarn=d.api_warn_count||[],apiBad=d.api_bad_count||[];
+    const dcSub=d.docker_sub2api_cpu||[],dcUp=d.docker_upstream_cpu||[],dcPg=d.docker_postgres_cpu||[],dcRedis=d.docker_redis_cpu||[];
+    const dmSub=d.docker_sub2api_mem||[],dmUp=d.docker_upstream_mem||[],dmPg=d.docker_postgres_mem||[],dmRedis=d.docker_redis_mem||[];
+    const h2=d.http_2xx||[],h4=d.http_4xx||[],h5=d.http_5xx||[],ho=d.http_other||[];
+    const dbTotal=d.db_total_mb||[],walTotal=d.wal_total_mb||[];
+    const gr=d.growth_root||[],gw=d.growth_www||[],gd=d.growth_docker||[],gc=d.growth_containerd||[];
+    const psiCpu=d.psi_cpu||[],psiIo=d.psi_io||[],psiMem=d.psi_memory||[];
+    const diRead=d.disk_read_iops||[],diWrite=d.disk_write_iops||[],dAwait=d.disk_await||[];
+    const tcpRate=d.tcp_retrans_rate||[],tcpRatio=d.tcp_retrans_ratio||[],sdFailed=d.systemd_failed||[];
+    const sub2apiRx=d.sub2api_rx_kbps||[],sub2apiTx=d.sub2api_tx_kbps||[];
+    const pgActive=d.pg_active_connections||[],pgMax=d.pg_max_connections||[];
+
+  // Chart: CPU + Load
+  const c1=charts['ch-cpu-load'];
+  if(c1&&!c1.isDisposed()&&cv.length&&chartVisibility['ch-cpu-load']){
+    c1.setOption(lineOpt(ts,[
+      {name:'处理器',data:cv,color:K.a,unit:'%',decimals:1},
+      {name:'1分钟负载',data:l1,color:K.g,unit:'load',decimals:2,yAxisIndex:1,noArea:true,width:2}
+    ],{
+      yAxes:[
+        {
+          type:'value',min:0,max:100,
+          axisLabel:{color:'#7d8590',fontSize:10,margin:8,formatter:v=>Number(v).toFixed(0)+'%'},
+          axisLine:{show:false},axisTick:{show:false},
+          splitLine:{lineStyle:{color:'rgba(139,148,158,.14)',type:'dashed'}}
+        },
+        {
+          type:'value',min:0,scale:true,
+          axisLabel:{color:'#7d8590',fontSize:10,margin:8,formatter:v=>Number(v).toFixed(1)},
+          axisLine:{show:false},axisTick:{show:false},
+          splitLine:{show:false}
+        }
+      ],
+      left:54,
+      right:42
+    }), {notMerge:false, lazyUpdate:true});
+  }
+  // Chart: Memory + Disk
+  const c2=charts['ch-mem-disk'];
+  if(c2&&!c2.isDisposed()&&chartVisibility['ch-mem-disk']){
+    const sl2=[];
+    if(mv.length) sl2.push({name:'内存',data:mv,color:K.purple,unit:'%',decimals:1});
+    if(dv.length) sl2.push({name:'系统盘',data:dv,color:K.orange,unit:'%',decimals:1});
+    if(dv2.length) sl2.push({name:'数据盘',data:dv2,color:'#26c6da',unit:'%',decimals:1});
+    if(sl2.length) c2.setOption(lineOpt(ts,sl2,{percent:true,unit:'%',decimals:1}), {notMerge:false, lazyUpdate:true});
+  }
+  // Chart: Network
+  const c3=charts['ch-net'];
+  if(c3&&!c3.isDisposed()&&nr.length&&chartVisibility['ch-net']){
+    c3.setOption(lineOpt(ts,[
+      {name:'下载',data:nr,color:K.a,unit:'Mbps',decimals:2},
+      {name:'上传',data:nt,color:K.g,unit:'Mbps',decimals:2},
+    ],{unit:'Mbps',autoMax:true,minMax:1,decimals:2,left:64}), {notMerge:false, lazyUpdate:true});
+  }
+  // Chart: Disk IO
+  const cio=charts['ch-disk-io'];
+  if(cio&&!cio.isDisposed()&&(dr.length||dw.length)&&chartVisibility['ch-disk-io']){
+    cio.setOption(lineOpt(ts,[
+      {name:'读取',data:dr,color:K.a,unit:'MB/s',decimals:2},
+      {name:'写入',data:dw,color:K.orange,unit:'MB/s',decimals:2},
+    ],{unit:'MB/s',autoMax:true,minMax:1,decimals:2,left:64}), {notMerge:false, lazyUpdate:true});
+  }
+  const renderSimpleChart=(id,series,opts={})=>{
+    const chart=charts[id];
+    if(!chart||chart.isDisposed()||!chartVisibility[id]) return;
+    const filtered=series.filter(item => (item.data||[]).some(v=>v!=null));
+    if(filtered.length) chart.setOption(lineOpt(ts,filtered,opts), {notMerge:false, lazyUpdate:true});
+  };
+  const renderResourceChart=(id,cpu,mem)=>{
+    const chart=charts[id];
+    if(!chart||chart.isDisposed()||!chartVisibility[id]) return;
+    const series=[];
+    if((cpu||[]).some(v=>v!=null)) series.push({name:'CPU',data:cpu,color:K.a,unit:'%',decimals:2});
+    if((mem||[]).some(v=>v!=null)) series.push({name:'内存',data:mem,color:K.orange,unit:'MB',decimals:1,yAxisIndex:1,noArea:true});
+    if(series.length) chart.setOption(lineOpt(ts,series,{left:60,right:54,yAxes:[
+      {type:'value',min:0,scale:true,axisLabel:{color:'#7d8590',fontSize:10,margin:8,formatter:v=>fmtChartValue(v,'%',0)},axisLine:{show:false},axisTick:{show:false},splitLine:{lineStyle:{color:'rgba(139,148,158,.14)',type:'dashed'}}},
+      {type:'value',min:0,scale:true,axisLabel:{color:'#7d8590',fontSize:10,margin:8,formatter:v=>fmtChartValue(v,'MB',0)},axisLine:{show:false},axisTick:{show:false},splitLine:{show:false}}
+    ]}), {notMerge:false, lazyUpdate:true});
+  };
+
+  renderSimpleChart('ch-api-latency',[
+    {name:'local18888',data:apiLocal,color:K.g,unit:'ms',decimals:1},
+    {name:'apius',data:apiApius,color:K.a,unit:'ms',decimals:1},
+    {name:'subus',data:apiSubus,color:K.purple,unit:'ms',decimals:1},
+  ],{unit:'ms',autoMax:true,minMax:50,decimals:1,left:64});
+  renderSimpleChart('ch-api-status',[
+    {name:'warn',data:apiWarn,color:K.y,unit:'',decimals:0},
+    {name:'bad',data:apiBad,color:K.r,unit:'',decimals:0,noArea:true},
+  ],{autoMax:true,minMax:1,decimals:0,axisDecimals:0,left:54});
+
+  renderResourceChart('ch-docker-sub2api',dcSub,dmSub);
+  renderResourceChart('ch-docker-upstream',dcUp,dmUp);
+  renderResourceChart('ch-docker-postgres',dcPg,dmPg);
+  renderResourceChart('ch-docker-redis',dcRedis,dmRedis);
+
+  renderSimpleChart('ch-sub2api-io',[
+    {name:'入站',data:sub2apiRx,color:K.a,unit:'KB/s',decimals:1},
+    {name:'出站',data:sub2apiTx,color:K.g,unit:'KB/s',decimals:1,noArea:true},
+  ],{unit:'KB/s',autoMax:true,minMax:10,decimals:1,left:64});
+
+  renderSimpleChart('ch-http-success',[
+    {name:'2xx',data:h2,color:K.g,unit:'',decimals:0},
+  ],{autoMax:true,minMax:1,decimals:0,axisDecimals:0,left:54});
+  renderSimpleChart('ch-http-errors',[
+    {name:'4xx',data:h4,color:K.y,unit:'',decimals:0},
+    {name:'5xx',data:h5,color:K.r,unit:'',decimals:0,noArea:true},
+    {name:'其他',data:ho,color:'#8b949e',unit:'',decimals:0,noArea:true},
+  ],{autoMax:true,minMax:1,decimals:0,axisDecimals:0,left:54});
+
+  renderSimpleChart('ch-db-size',[
+    {name:'数据库',data:dbTotal,color:K.a,unit:'MB',decimals:1},
+  ],{unit:'MB',autoMax:true,minMax:16,decimals:1,left:64});
+  renderSimpleChart('ch-pg-connections',[
+    {name:'活跃连接',data:pgActive,color:K.g,unit:'',decimals:0},
+    {name:'最大连接',data:pgMax,color:K.r,unit:'',decimals:0,noArea:true},
+  ],{autoMax:true,minMax:10,decimals:0,left:54});
+  renderSimpleChart('ch-wal-size',[
+    {name:'WAL',data:walTotal,color:K.orange,unit:'MB',decimals:1},
+  ],{unit:'MB',autoMax:true,minMax:1,decimals:1,left:64});
+
+  renderSimpleChart('ch-growth-root',[
+    {name:'/',data:gr,color:K.a,unit:'GB/h',decimals:3},
+  ],{unit:'GB/h',autoMax:true,minMax:0.01,decimals:3,left:68});
+  renderSimpleChart('ch-growth-www',[
+    {name:'/www',data:gw,color:K.g,unit:'GB/h',decimals:3},
+  ],{unit:'GB/h',autoMax:true,minMax:0.01,decimals:3,left:68});
+  renderSimpleChart('ch-growth-docker',[
+    {name:'/www/docker',data:gd,color:K.orange,unit:'GB/h',decimals:3},
+  ],{unit:'GB/h',autoMax:true,minMax:0.01,decimals:3,left:68});
+  renderSimpleChart('ch-growth-containerd',[
+    {name:'containerd',data:gc,color:K.purple,unit:'GB/h',decimals:3},
+  ],{unit:'GB/h',autoMax:true,minMax:0.01,decimals:3,left:68});
+
+  renderSimpleChart('ch-psi-pressure',[
+    {name:'CPU some',data:psiCpu,color:K.a,unit:'%',decimals:2},
+    {name:'IO some',data:psiIo,color:K.orange,unit:'%',decimals:2,noArea:true},
+    {name:'内存 some',data:psiMem,color:K.purple,unit:'%',decimals:2,noArea:true},
+  ],{unit:'%',autoMax:true,minMax:1,decimals:2,left:60});
+  renderSimpleChart('ch-disk-iops',[
+    {name:'读取 IOPS',data:diRead,color:K.a,unit:'ops/s',decimals:1},
+    {name:'写入 IOPS',data:diWrite,color:K.orange,unit:'ops/s',decimals:1,noArea:true},
+  ],{unit:'ops/s',autoMax:true,minMax:1,decimals:1,left:64});
+  renderSimpleChart('ch-disk-await',[
+    {name:'await',data:dAwait,color:K.y,unit:'ms',decimals:2},
+  ],{unit:'ms',autoMax:true,minMax:1,decimals:2,left:64});
+  renderSimpleChart('ch-tcp-retrans',[
+    {name:'重传/s',data:tcpRate,color:K.r,unit:'ops/s',decimals:3},
+    {name:'重传率%',data:tcpRatio,color:K.y,unit:'%',decimals:4,noArea:true,yAxisIndex:1},
+  ],{left:64,right:54,yAxes:[
+    {type:'value',min:0,scale:true,axisLabel:{color:'#7d8590',fontSize:10,margin:8,formatter:v=>fmtChartValue(v,'ops/s',2)},axisLine:{show:false},axisTick:{show:false},splitLine:{lineStyle:{color:'rgba(139,148,158,.14)',type:'dashed'}}},
+    {type:'value',min:0,scale:true,axisLabel:{color:'#7d8590',fontSize:10,margin:8,formatter:v=>fmtChartValue(v,'%',2)},axisLine:{show:false},axisTick:{show:false},splitLine:{show:false}}
+  ]});
+  renderSimpleChart('ch-systemd-failed',[
+    {name:'failed units',data:sdFailed,color:K.r,unit:'',decimals:0},
+  ],{autoMax:true,minMax:1,decimals:0,axisDecimals:0,left:54});
+
+  } finally {
+    historyUpdateInProgress = false;
+  }
+}
+
+function updateStatus(d){
+  if(!d){$('host').textContent='—';return}
+  $('host').textContent = d.hostname||'—';
+  $('up').textContent = typeof d.uptime==='string'?d.uptime:'—';
+}
+
+async function refreshDetailed(){
+  try{
+    const d=await loadDetailed();
+    if(d.cpu_per_core) updatePerCore(d.cpu_per_core);
+  }catch(e){/* silent */}
+}
+
+async function refreshHistory(){
+  try{
+    const d=await loadHistory();
+    updateHistory(d);
+  }catch(e){/* silent */}
+}
+
+async function refreshAll(){
+  // Refresh heavier history charts + per-core view on a slower timer; SSE updates cards realtime.
+  await Promise.allSettled([refreshHistory(), refreshDetailed()]);
+}
+
+// ── Countdown Timer ──
+let cdTimer=null;
+function resetCountdown(){
+  countdown = refreshInterval;
+}
+function startCountdown(){
+  if(cdTimer) clearInterval(cdTimer);
+  resetCountdown();
+  cdTimer = setInterval(()=>{
+    countdown-=0.1;
+    if(countdown<=0){
+      resetCountdown();
+      if(!document.hidden) refreshAll();
+    }
+  },100);
+}
+
+// ── Refresh Interval ──
+function setRefreshInterval(v){
+  refreshInterval=v;
+  $$('.btn-int').forEach(b=>b.classList.toggle('on',parseInt(b.dataset.int)===v));
+  startCountdown();
+}
+
+// ── SSE ──
+function connectSSE(){
+  if(sse){sse.close();sse=null}
+  try{
+    sse=new EventSource('/api/system/realtime');
+    const onMetrics=e=>{
+      try{
+        const d=JSON.parse(e.data);
+        updateLatest(d);
+        // Also update per-core from SSE data if available
+        if(d.cpu?.per_cpu){
+          updatePerCore(d.cpu.per_cpu.map((v,i)=>({core:i,percent:v})));
+        }
+        if(!sseConnected){
+          sseConnected=true;
+          $('dot').className='dot on';
+          const live=$('liveText'); if(live) live.textContent='实时';
+        }
+      }catch(ex){}
+    };
+    sse.onmessage=onMetrics;
+    sse.addEventListener('metrics', onMetrics);
+    sse.onerror=()=>{sseConnected=false;$('dot').className='dot off';const live=$('liveText'); if(live) live.textContent='重连中'};
+    sse.onopen=()=>{sseConnected=true;$('dot').className='dot on';const live=$('liveText'); if(live) live.textContent='实时'};
+  }catch(e){console.warn('SSE:',e.message)}
+}
+
+// ── Range Switch ──
+async function switchRange(r){
+  range=r;
+  $$('.btn[data-r]').forEach(b=>{
+    const on=b.dataset.r===r;
+    b.classList.toggle('on',on);
+    b.setAttribute('aria-pressed',on?'true':'false');
+  });
+  await refreshHistory();
+}
+
+// ── Init ──
+async function init(){
+  initCharts();
+
+  try{
+    const[ld,sd]=await Promise.all([loadLatest(),loadStatus()]);
+    updateLatest(ld);updateStatus(sd);
+  }catch(e){showErr('⚠️ 无法连接监控服务')}
+
+  // Initial full refresh
+  await refreshAll();
+
+  // Start SSE for real-time stats
+  connectSSE();
+
+  // Start countdown
+  startCountdown();
+}
+
+// ── Event Listeners ──
+document.addEventListener('DOMContentLoaded',()=>{
+  $$('.btn[data-r]').forEach(b=>b.addEventListener('click',()=>switchRange(b.dataset.r)));
+  // Wait for first paint to ensure DOM layout is complete before init
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      init();
+    });
+  });
+});
+
+let resizeRaf=null;
+window.addEventListener('resize',()=>{
+  if(resizeRaf) cancelAnimationFrame(resizeRaf);
+  resizeRaf=requestAnimationFrame(()=>{
+    Object.values(charts).forEach(c=>{if(c&&!c.isDisposed())c.resize()});
+  });
+});
+
+// Pause rendering when tab hidden
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){
+    if(sse){sse.close();sse=null}
+    sseConnected=false;
+  }else{
+    // Tab visible again - reconnect and refresh immediately
+    connectSSE();
+    refreshAll().then(()=>resetCountdown());
+  }
+});
+</script>
+</body>
+</html>

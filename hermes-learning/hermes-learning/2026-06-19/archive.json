@@ -1,0 +1,64 @@
+{
+  "date": "2026-06-19",
+  "projects": [
+    {
+      "name": "XiaomiMiMo/MiMo-Code",
+      "url": "https://github.com/XiaomiMiMo/MiMo-Code",
+      "tags": ["ai", "llm", "agent", "coding", "cli", "memory", "developer-tools"],
+      "score": 9,
+      "stars": 9913,
+      "language": "TypeScript"
+    },
+    {
+      "name": "AprilNEA/OpenLogi",
+      "url": "https://github.com/AprilNEA/OpenLogi",
+      "tags": ["app", "desktop", "rust", "hid", "local-first", "linux", "macos"],
+      "score": 8,
+      "stars": 5150,
+      "language": "Rust"
+    },
+    {
+      "name": "omnigent-ai/omnigent",
+      "url": "https://github.com/omnigent-ai/omnigent",
+      "tags": ["ai", "agent-framework", "multi-agent", "sandbox", "governance", "mcp", "collaboration"],
+      "score": 9,
+      "stars": 4012,
+      "language": "Python"
+    },
+    {
+      "name": "nexu-io/html-video",
+      "url": "https://github.com/nexu-io/html-video",
+      "tags": ["web", "video", "html", "css", "agent-skill", "ffmpeg", "templates"],
+      "score": 8,
+      "stars": 3331,
+      "language": "HTML"
+    },
+    {
+      "name": "cpaczek/skylight",
+      "url": "https://github.com/cpaczek/skylight",
+      "tags": ["iot", "embedded", "raspberry-pi", "rtl-sdr", "ads-b", "realtime", "visualization"],
+      "score": 9,
+      "stars": 2797,
+      "language": "TypeScript"
+    },
+    {
+      "name": "OpenBMB/PilotDeck",
+      "url": "https://github.com/OpenBMB/PilotDeck",
+      "tags": ["ai", "agent-os", "workspace", "memory", "mcp", "always-on", "productivity"],
+      "score": 9,
+      "stars": 3565,
+      "language": "TypeScript"
+    },
+    {
+      "name": "arXiv:2606.20562v1 MemoryWAM",
+      "url": "https://arxiv.org/abs/2606.20562v1",
+      "tags": ["arxiv", "robotics", "world-model", "persistent-memory", "edge-ai", "research"],
+      "score": 8,
+      "stars": 0,
+      "language": "N/A"
+    }
+  ],
+  "summary": "Agent 平台操作系统化、白盒记忆、任务级隔离、模板即代码和边缘实时可视化是今日主要趋势。Hermes 可重点借鉴持久记忆、停止条件审计、workspace 隔离、策略治理和执行过程可视化。",
+  "sources": ["github-search", "github-readme", "arxiv"],
+  "coverage": ["ai/llm", "app", "web", "embedded/iot", "research"]
+}

@@ -1,0 +1,140 @@
+services:
+  - id: home
+    name: ServerHub Next
+    unit: serverhub-next
+    icon: command
+    port: 9600
+    group: 入口与总览
+    url: null
+    local_url: http://[REDACTED_IP]:9600/api/health
+    path: /opt/serverhub-next
+    desc: 独立新建的统一控制台，覆盖现有 Web 能力
+    exposure: public
+    pinned: true
+    tags: [home, portal, next]
+
+  - id: monitor
+    name: System Monitor
+    unit: hermes-system-monitor
+    icon: activity
+    port: 9000
+    group: 系统监控
+    url: https://monitor.zmjjkkk.fun/
+    local_url: http://[REDACTED_IP]:9000/api/health
+    path: /opt/hermes-system-monitor
+    desc: CPU、内存、磁盘、网络与历史指标
+    exposure: protected
+    pinned: true
+    tags: [metrics, system]
+
+  - id: agents
+    name: Agent 控制台
+    unit: hermes-dashboard-web
+    icon: bot
+    port: 9100
+    group: AI / Agents
+    url: https://agent.zmjjkkk.fun/
+    local_url: http://[REDACTED_IP]:9100/api/status
+    path: /opt/hermes-dashboard
+    desc: Hermes / OpenClaw 管理、模型配置、会话与日志
+    exposure: protected
+    pinned: true
+    tags: [ai, hermes, openclaw]
+
+  - id: openclaw
+    name: OpenClaw Gateway
+    unit: openclaw-gateway
+    icon: paw
+    port: 18789
+    group: AI / Agents
+    url: null
+    local_url: http://[REDACTED_IP]:18789/health
+    path: /root/.openclaw
+    desc: OpenClaw QQBot 网关，只允许本机受控访问
+    exposure: local-only
+    pinned: true
+    tags: [gateway, qqbot, local]
+
+  - id: notes
+    name: Obsidian 知识库
+    unit: obsidian-knowledge-web
+    icon: book
+    port: 9200
+    group: 知识与记忆
+    url: https://notes.zmjjkkk.fun/
+    local_url: http://[REDACTED_IP]:9200/api/status
+    path: /opt/obsidian-knowledge-web
+    desc: Obsidian Vault、知识库和 Markdown 浏览
+    exposure: protected
+    pinned: true
+    tags: [notes, obsidian]
+
+  - id: files
+    name: 文件浏览
+    unit: server-file-web
+    icon: folder
+    port: 9300
+    group: 文件与数据
+    url: https://files.zmjjkkk.fun/
+    local_url: http://[REDACTED_IP]:9300/
+    path: /opt/server-file-web
+    desc: 服务器文件结构浏览，默认作为受保护入口
+    exposure: protected
+    pinned: true
+    tags: [files, data]
+
+  - id: memory
+    name: Shared Agent Memory
+    unit: shared-agent-memory
+    icon: brain
+    port: 9400
+    group: 知识与记忆
+    url: null
+    local_url: http://[REDACTED_IP]:9400/health
+    path: /opt/shared-agent-memory
+    desc: Hermes / OpenClaw 共享长期记忆服务，不公网暴露写接口
+    exposure: local-only
+    pinned: true
+    tags: [memory, api]
+
+  - id: daily-summary
+    name: 每日总结 Web
+    unit: hermes-daily-summary-web
+    icon: newspaper
+    port: 9500
+    group: 资讯与报告
+    url: http://[REDACTED_IP]:9500/
+    local_url: http://[REDACTED_IP]:9500/api/health
+    path: /root/obsidian-vault/全球咨询调研/00-每日汇总
+    desc: Hermes 每日总结和 Markdown 汇总浏览
+    exposure: protected
+    pinned: true
+    tags: [reports, summary]
+
+  - id: recall-gateway
+    name: Agent 统一召回
+    unit: agent-recall-gateway
+    icon: brain
+    port: 19410
+    group: 知识与记忆
+    url: null
+    local_url: http://[REDACTED_IP]:19410/health
+    path: /opt/agent-recall-gateway
+    desc: 只读聚合 shared-memory 与 Obsidian RAG，供 Hermes/OpenClaw/Dashboard 召回使用
+    exposure: local-only
+    pinned: true
+    tags: [recall, rag, memory, obsidian, api]
+
+  - id: provider-health
+    name: 中转健康监控
+    unit: provider-health-monitor
+    icon: activity
+    port: 19420
+    group: AI / Agents
+    url: null
+    local_url: http://[REDACTED_IP]:19420/health
+    path: /opt/provider-health-monitor
+    desc: 只读探测 /v1/models，不做 chat 压测，不自动切换路由
+    exposure: local-only
+    pinned: true
+    tags: [provider, health, model, proxy, api]
